@@ -9,7 +9,7 @@ import wx.lib.inspection
 import wx.lib.mixins.inspection
 import wx.stc
 
-#----------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
     """A CPPStyledTextCtrl is a text editor window that knows how to
@@ -84,7 +84,7 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         self.SetTabIndents(False)
 
 
-#----------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 class SketchPanel(wx.Panel):
     """A SketchPanel gives a tabbed view of the files in a sketch.
@@ -107,11 +107,28 @@ class SketchPanel(wx.Panel):
         page = CPPStyledTextCtrl(self.nb)
         self.nb.AddPage(page, name)
 
-#----------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+class SketchFrame(wx.Frame):
+    """wx.Frame for showing a sketch: verify/etc. buttons, tabbed view
+    of the files in the sketch, sketch status, window for compiler
+    output, and last compile's exit status.
+
+    I.e., it's a repeat of the usual Wiring/Arduino interface.
+    """
+
+    def __init__(self, parent, id=wx.ID_ANY, pos=(50,50), size=(200,100),
+                 style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE"):
+        wxFrame.__init__(self, parent, id, pos, size, style, name)
+        self.CreateStatusBar()
+        self.SetMenuBar(parent.menu_bar)
+
+
+#------------------------------------------------------------------------------
 
 assertMode = wx.PYAPP_ASSERT_EXCEPTION
 
-#----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 class Log:
     def WriteText(self, text):
@@ -275,10 +292,12 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         return menu_bar
 
     def _make_sketch_frame(self):
-        frame = wx.Frame(None, -1, self.name, pos=(50,50), size=(200,100),
-                        style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE")
-        frame.CreateStatusBar()
-        frame.SetMenuBar(self.menu_bar)
+        # frame = wx.Frame(None, wx.ID_ANY, self.name, pos=(50,50),
+        #                  size=(200,100), style=wx.DEFAULT_FRAME_STYLE,
+        #                  name="Maple IDE")
+        # frame.CreateStatusBar()
+        # frame.SetMenuBar(self.menu_bar)
+        frame = SketchFrame(self)
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
 
