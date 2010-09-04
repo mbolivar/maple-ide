@@ -2,12 +2,17 @@
 
 import os
 import sys
+import webbrowser
+from pprint import pprint
 
 import wx
 import wx.aui
 import wx.lib.inspection
 import wx.lib.mixins.inspection
 import wx.stc
+
+import resources
+import settings
 
 #------------------------------------------------------------------------------
 
@@ -19,7 +24,7 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         wx.stc.StyledTextCtrl.__init__(self, parent, id=wx.ID_ANY,
                                        style=wx.TE_MULTILINE)
 
-        # !@#$ this was very badly documented. best i could find was
+        # !@#$ this was badly documented. best i could find was
         # http://www.yellowbrain.com/stc/index.html
         #
         # in particular:
@@ -83,7 +88,6 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         self.SetTabWidth(4)
         self.SetTabIndents(False)
 
-
 #------------------------------------------------------------------------------
 
 class SketchPanel(wx.Panel):
@@ -121,7 +125,48 @@ class SketchFrame(wx.Frame):
                  pos=(50,50), size=(200,100), style=wx.DEFAULT_FRAME_STYLE,
                  name="Maple IDE"):
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
+
+        self.__ids = {}
+
+        # toolbar
+        self.toolbar = self.CreateToolBar()
+        button_pieces = resources.desprite_bitmap(settings.TOOLBAR_BUTTONS, 7)
+        verify, stop, new_sk, open_sk, save_sk, upload, serial = button_pieces
+        self._add_to_toolbar(verify, self.OnVerify)
+        self._add_to_toolbar(stop, self.OnStop)
+        self._add_to_toolbar(new_sk, self.OnNewSketch)
+        self._add_to_toolbar(open_sk, self.OnOpenSketch)
+        self._add_to_toolbar(save_sk, self.OnSaveSketch)
+        self._add_to_toolbar(upload, self.OnUpload)
+        self._add_to_toolbar(serial, self.OnSerialMonitor)
+        self.toolbar.Realize()
+
+        # status bar
         self.CreateStatusBar()
+
+    def _add_to_toolbar(self, bitmap, click_handler):
+        tool_id = wx.NewId()
+        self.toolbar.SetToolBitmapSize(bitmap.GetSize())
+        self.toolbar.AddTool(tool_id, bitmap)
+        self.Bind(wx.EVT_TOOL, click_handler, id=tool_id)
+        return tool_id
+
+    def OnVerify(self, evt):
+        print 'verify not done yet!'   # TODO
+    def OnStop(self, evt):
+        print 'not done!'       # TODO
+    def OnNewSketch(self, evt):
+        print 'not done!'       # TODO
+    def OnOpenSketch(self, evt):
+        print 'not done!'       # TODO
+    def OnSaveSketch(self, evt):
+        print 'not done!'       # TODO
+    def OnUpload(self, evt):
+        print 'not done!'       # TODO
+    def OnSerialMonitor(self, evt):
+        print 'not done!'       # TODO
+
+
 
 
 #------------------------------------------------------------------------------
@@ -487,17 +532,23 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         self.NotImplementedPopup()
 
     def OnVisitArduino(self, evt):
-        # TODO
-        self.NotImplementedPopup()
+        # not using wx.LaunchDefaultBrowser because the webbrowser
+        # module is better documented, and what it has to say about
+        # its behavior sounds good
+        webbrowser.open_new_tab('http://arduino.cc')
 
     def OnVisitLeafLabs(self, evt):
-        # TODO
-        self.NotImplementedPopup()
+        # not using wx.LaunchDefaultBrowser because the webbrowser
+        # module is better documented, and what it has to say about
+        # its behavior sounds good
+        webbrowser.open_new_tab('http://leaflabs.com')
 
     #-------------------------- App event handlers ---------------------------#
 
     def OnCloseFrame(self, evt):
-        print evt.Skip.__doc__
+        # print evt.Skip.__doc__
+        # print '----'
+        # pprint(dir(evt))
         evt.Skip()              # TODO remove?
 
 

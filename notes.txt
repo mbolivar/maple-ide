@@ -15,3 +15,10 @@ MENU
 
 - undo/redo should be grayed out as appropriate
 - need to have the app not be "Python" (probably requires building a .app)
+
+TOOLBAR
+-------
+
+- mouseover support
+- text listing what the button does should appear
+

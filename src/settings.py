@@ -7,3 +7,6 @@ import os.path
 
 MAKE_PATH = '/usr/bin/make'
 SKETCHBOOK_PATH = os.path.expanduser('~/Documents/MapleIDE')
+RESOURCE_DIR = os.path.abspath('../resources')
+
+TOOLBAR_BUTTONS = 'buttons.png'
