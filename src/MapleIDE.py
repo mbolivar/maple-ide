@@ -22,7 +22,7 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
 
     def __init__(self, parent):
         wx.stc.StyledTextCtrl.__init__(self, parent, id=wx.ID_ANY,
-                                       style=wx.TE_MULTILINE)
+                                       style=wx.NO_BORDER | wx.TE_MULTILINE)
 
         # !@#$ this was badly documented. best i could find was
         # http://www.yellowbrain.com/stc/index.html
@@ -90,29 +90,6 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
 
 #------------------------------------------------------------------------------
 
-class SketchPanel(wx.Panel):
-    """A SketchPanel gives a tabbed view of the files in a sketch.
-    """
-    def __init__(self, parent, log):
-        self.log = log
-        wx.Panel.__init__(self, parent, -1)
-
-        self.nb = wx.aui.AuiNotebook(self)
-
-        # FIXME handle an actual sketch
-        for n in range(1, 5):
-            self.MakeNewTab("this is tab %d" % n)
-
-        sizer = wx.BoxSizer()
-        sizer.Add(self.nb, 1, wx.EXPAND)
-        self.SetSizer(sizer)
-
-    def MakeNewTab(self, name):
-        page = CPPStyledTextCtrl(self.nb)
-        self.nb.AddPage(page, name)
-
-#------------------------------------------------------------------------------
-
 class SketchFrame(wx.Frame):
     """wx.Frame for showing a sketch: verify/etc. buttons, tabbed view
     of the files in the sketch, sketch status, window for compiler
@@ -122,11 +99,12 @@ class SketchFrame(wx.Frame):
     """
 
     def __init__(self, parent=None, id=wx.ID_ANY, title="Maple IDE",
-                 pos=(50,50), size=(200,100), style=wx.DEFAULT_FRAME_STYLE,
+                 pos=(50,50), size=(640,480), style=wx.DEFAULT_FRAME_STYLE,
                  name="Maple IDE"):
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
 
-        self.__ids = {}
+        # this thing totally takes the pain out of panel layout
+        self.__mgr = wx.aui.AuiManager(self)
 
         # toolbar
         self.toolbar = self.CreateToolBar()
@@ -144,13 +122,51 @@ class SketchFrame(wx.Frame):
         # status bar
         self.CreateStatusBar()
 
-        ## Open up a sketch window
-        win = SketchPanel(self, Log())
+        # tabbed view of current sketch
+        self.nb = wx.aui.AuiNotebook(self)
 
-        # set the frame to a good size for showing stuff.
-        self.SetSize((640, 480))
-        win.SetFocus()
+        # compiler output
+        self.comp = wx.TextCtrl(self, -1, '', wx.DefaultPosition,
+                                wx.Size(200, 150),
+                                wx.NO_BORDER | wx.TE_MULTILINE)
+        comp_info = wx.aui.AuiPaneInfo()
+        comp_info.Bottom()
+        comp_info.CaptionVisible(True)
+        comp_info.CloseButton(False)
+        comp_info.Floatable(False)
 
+        # add the panes to the manager
+        self.__mgr.AddPane(self.nb, wx.CENTER)
+        self.__mgr.AddPane(self.comp, info=comp_info)
+        self.__mgr.Update()
+
+        # set frame close handler
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+        # TODO this is just for demoing/debugging
+        self._demo_mockup()
+
+    def _demo_mockup(self):
+        for n in range(1, 5):
+            page = self.MakeNewTab("this is tab %d" % n)
+            page.SetText('\n'.join(['#define HELLO "WORLD"',
+                                    '',
+                                    'int x = 3; // a comment!',
+                                    "char b = 'c';",
+                                    'char *s = "string!"',
+                                    ''
+                                    '/** another comment! */',
+                                    'int main(char **argv, int argc) {'
+                                    '    return 0;'
+                                    '}']))
+        self.SetCaptionText('Compilation b0rked!')
+        self.comp.AppendText('file.c:23:you messed up!')
+        self.SetStatusText('look, i set the status text!')
+
+    def MakeNewTab(self, name):
+        page = CPPStyledTextCtrl(self.nb)
+        self.nb.AddPage(page, name)
+        return page
 
     def _add_to_toolbar(self, bitmap, click_handler):
         tool_id = wx.NewId()
@@ -159,37 +175,47 @@ class SketchFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, click_handler, id=tool_id)
         return tool_id
 
+    def SetCaptionText(self, text):
+        # just stashing comp_info in __init__ won't work; i think
+        # AuiManager makes a fresh AuiPaneInfo for any window you give it
+        info = self.__mgr.GetPane(self.comp)
+        info.Caption(text)
+        self.__mgr.Update()
+
+    #------------------------- Frame event handlers ---------------------------
+
+    def OnClose(self, evt):
+        self.__mgr.UnInit()
+        self.Destroy()
+
+    #--------------------------- Toolbar handlers ----------------------------
+
     def OnVerify(self, evt):
         print 'verify not done yet!'   # TODO
+
     def OnStop(self, evt):
         print 'not done!'       # TODO
+
     def OnNewSketch(self, evt):
         print 'not done!'       # TODO
+
     def OnOpenSketch(self, evt):
         print 'not done!'       # TODO
+
     def OnSaveSketch(self, evt):
         print 'not done!'       # TODO
+
     def OnUpload(self, evt):
         print 'not done!'       # TODO
+
     def OnSerialMonitor(self, evt):
         print 'not done!'       # TODO
-
-
-
 
 #------------------------------------------------------------------------------
 
 assertMode = wx.PYAPP_ASSERT_EXCEPTION
 
 #------------------------------------------------------------------------------
-
-class Log:
-    def WriteText(self, text):
-        if text[-1:] == '\n':
-            text = text[:-1]
-        wx.LogMessage(text)
-    write = WriteText
-
 
 class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def __init__(self, name):
@@ -198,8 +224,6 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
 
     def OnInit(self):
-        wx.Log_SetActiveTarget(wx.LogStderr())
-
         self.SetAssertMode(assertMode)
         self.Init()  # InspectionMixin
 
@@ -208,11 +232,7 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
         ## Initial sketch frame
         self.frame = self._make_sketch_frame()
-
         self.SetTopWindow(self.frame)
-        #wx.Log_SetActiveTarget(wx.LogStderr())
-        #wx.Log_SetTraceMask(wx.TraceMessages)
-
         return True
 
     def _make_menu_bar(self):
@@ -348,7 +368,6 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         frame = SketchFrame()
         frame.SetMenuBar(self.menu_bar)
         frame.Show(True)
-        frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
 
         return frame
 
@@ -533,29 +552,12 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         self.NotImplementedPopup()
 
     def OnVisitArduino(self, evt):
-        # not using wx.LaunchDefaultBrowser because the webbrowser
-        # module is better documented, and what it has to say about
-        # its behavior sounds good
         webbrowser.open_new_tab('http://arduino.cc')
 
     def OnVisitLeafLabs(self, evt):
-        # not using wx.LaunchDefaultBrowser because the webbrowser
-        # module is better documented, and what it has to say about
-        # its behavior sounds good
         webbrowser.open_new_tab('http://leaflabs.com')
 
-    #-------------------------- App event handlers ---------------------------#
-
-    def OnCloseFrame(self, evt):
-        # print evt.Skip.__doc__
-        # print '----'
-        # pprint(dir(evt))
-        evt.Skip()              # TODO remove?
-
-
-
 #----------------------------------------------------------------------------
-
 
 def main(argv):
     name, ext  = os.path.splitext(argv[1])
