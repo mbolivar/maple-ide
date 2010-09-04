@@ -147,30 +147,21 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         frame.CreateStatusBar()
 
         ## Menu bar
-        menu_bar = self._make_menu_bar()
+        self.menu_bar = self._make_menu_bar()
 
         # Set up menu bar
-        frame.SetMenuBar(menu_bar)
+        frame.SetMenuBar(self.menu_bar)
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
 
         ## Open up a sketch window
-        win = runTest(frame, frame, Log())
+        win = SketchPanel(frame, Log())
 
-        # a window will be returned if the demo does not create
-        # its own top-level window
-        if win:
-            # so set the frame to a good size for showing stuff
-            frame.SetSize((640, 480))
-            win.SetFocus()
-            self.window = win
-            frect = frame.GetRect()
-
-        else:
-            # It was probably a dialog or something that is already
-            # gone, so we're done.
-            frame.Destroy()
-            return True
+        # set the frame to a good size for showing stuff.
+        frame.SetSize((640, 480))
+        win.SetFocus()
+        self.window = win
+        frect = frame.GetRect()
 
         self.SetTopWindow(frame)
         self.frame = frame
