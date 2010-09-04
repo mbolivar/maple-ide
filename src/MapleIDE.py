@@ -144,6 +144,14 @@ class SketchFrame(wx.Frame):
         # status bar
         self.CreateStatusBar()
 
+        ## Open up a sketch window
+        win = SketchPanel(self, Log())
+
+        # set the frame to a good size for showing stuff.
+        self.SetSize((640, 480))
+        win.SetFocus()
+
+
     def _add_to_toolbar(self, bitmap, click_handler):
         tool_id = wx.NewId()
         self.toolbar.SetToolBitmapSize(bitmap.GetSize())
@@ -341,13 +349,6 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         frame.SetMenuBar(self.menu_bar)
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
-
-        ## Open up a sketch window
-        win = SketchPanel(frame, Log())
-
-        # set the frame to a good size for showing stuff.
-        frame.SetSize((640, 480))
-        win.SetFocus()
 
         return frame
 
