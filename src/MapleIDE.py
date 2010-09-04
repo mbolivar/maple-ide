@@ -117,11 +117,11 @@ class SketchFrame(wx.Frame):
     I.e., it's a repeat of the usual Wiring/Arduino interface.
     """
 
-    def __init__(self, parent, id=wx.ID_ANY, pos=(50,50), size=(200,100),
-                 style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE"):
-        wxFrame.__init__(self, parent, id, pos, size, style, name)
+    def __init__(self, parent=None, id=wx.ID_ANY, title="Maple IDE",
+                 pos=(50,50), size=(200,100), style=wx.DEFAULT_FRAME_STYLE,
+                 name="Maple IDE"):
+        wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
         self.CreateStatusBar()
-        self.SetMenuBar(parent.menu_bar)
 
 
 #------------------------------------------------------------------------------
@@ -292,12 +292,8 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         return menu_bar
 
     def _make_sketch_frame(self):
-        # frame = wx.Frame(None, wx.ID_ANY, self.name, pos=(50,50),
-        #                  size=(200,100), style=wx.DEFAULT_FRAME_STYLE,
-        #                  name="Maple IDE")
-        # frame.CreateStatusBar()
-        # frame.SetMenuBar(self.menu_bar)
-        frame = SketchFrame(self)
+        frame = SketchFrame()
+        frame.SetMenuBar(self.menu_bar)
         frame.Show(True)
         frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
 
