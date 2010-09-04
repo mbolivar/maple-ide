@@ -109,14 +109,6 @@ class SketchPanel(wx.Panel):
 
 #----------------------------------------------------------------------
 
-def runTest(frame, nb, log):
-    win = SketchPanel(nb, log)
-    return win
-
-#######################################################################
-###  I don't really understand anything below this line
-#######################################################################
-
 assertMode = wx.PYAPP_ASSERT_EXCEPTION
 
 #----------------------------------------------------------------------------
@@ -141,30 +133,13 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         self.SetAssertMode(assertMode)
         self.Init()  # InspectionMixin
 
-        ## Frame
-        frame = wx.Frame(None, -1, self.name, pos=(50,50), size=(200,100),
-                        style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE")
-        frame.CreateStatusBar()
-
         ## Menu bar
         self.menu_bar = self._make_menu_bar()
 
-        # Set up menu bar
-        frame.SetMenuBar(self.menu_bar)
-        frame.Show(True)
-        frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
+        ## Initial sketch frame
+        self.frame = self._make_sketch_frame()
 
-        ## Open up a sketch window
-        win = SketchPanel(frame, Log())
-
-        # set the frame to a good size for showing stuff.
-        frame.SetSize((640, 480))
-        win.SetFocus()
-        self.window = win
-        frect = frame.GetRect()
-
-        self.SetTopWindow(frame)
-        self.frame = frame
+        self.SetTopWindow(self.frame)
         #wx.Log_SetActiveTarget(wx.LogStderr())
         #wx.Log_SetTraceMask(wx.TraceMessages)
 
@@ -298,6 +273,25 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         menu_bar.Append(help_menu, "&Help")
 
         return menu_bar
+
+    def _make_sketch_frame(self):
+        frame = wx.Frame(None, -1, self.name, pos=(50,50), size=(200,100),
+                        style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE")
+        frame.CreateStatusBar()
+        frame.SetMenuBar(self.menu_bar)
+        frame.Show(True)
+        frame.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
+
+        ## Open up a sketch window
+        win = SketchPanel(frame, Log())
+
+        # set the frame to a good size for showing stuff.
+        frame.SetSize((640, 480))
+        win.SetFocus()
+
+        return frame
+
+    #-------------------------------------------------------------------------#
 
     def NotImplementedPopup(self):
         popup = wx.MessageDialog(None, "Sorry!", "Not implemented yet", wx.OK)
@@ -488,8 +482,7 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     #-------------------------- App event handlers ---------------------------#
 
     def OnCloseFrame(self, evt):
-        if hasattr(self, "window") and hasattr(self.window, "ShutdownDemo"):
-            self.window.ShutdownDemo()
+        print evt.Skip.__doc__
         evt.Skip()              # TODO remove?
 
 
