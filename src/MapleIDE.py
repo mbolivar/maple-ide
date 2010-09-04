@@ -13,6 +13,9 @@ import wx.stc
 
 import resources
 import settings
+from ui import UserInterface
+
+STATUS_SUCCESS = 0              # FIXME this needs a better place
 
 #------------------------------------------------------------------------------
 
@@ -90,7 +93,7 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
 
 #------------------------------------------------------------------------------
 
-class SketchFrame(wx.Frame):
+class SketchFrame(wx.Frame, UserInterface):
     """wx.Frame for showing a sketch: verify/etc. buttons, tabbed view
     of the files in the sketch, sketch status, window for compiler
     output, and last compile's exit status.
@@ -98,10 +101,12 @@ class SketchFrame(wx.Frame):
     I.e., it's a repeat of the usual Wiring/Arduino interface.
     """
 
-    def __init__(self, parent=None, id=wx.ID_ANY, title="Maple IDE",
+    def __init__(self, sketch, parent=None, id=wx.ID_ANY, title="Maple IDE",
                  pos=(50,50), size=(640,480), style=wx.DEFAULT_FRAME_STYLE,
                  name="Maple IDE"):
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
+
+        self._pages = {}        # {basename: CPPStyledTextCtrl}
 
         # this thing totally takes the pain out of panel layout
         self.__mgr = wx.aui.AuiManager(self)
@@ -146,9 +151,10 @@ class SketchFrame(wx.Frame):
         # TODO this is just for demoing/debugging
         self._demo_mockup()
 
-    def _demo_mockup(self):
+    def _demo_mockup(self):     # TODO take this out
         for n in range(1, 5):
-            page = self.MakeNewTab("this is tab %d" % n)
+            page_name = "this is tab %d" % n
+            page = self.MakeNewTab(page_name)
             page.SetText('\n'.join(['#define HELLO "WORLD"',
                                     '',
                                     'int x = 3; // a comment!',
@@ -159,9 +165,11 @@ class SketchFrame(wx.Frame):
                                     'int main(char **argv, int argc) {'
                                     '    return 0;'
                                     '}']))
+            self._pages[page_name] = page
         self.SetCaptionText('Compilation b0rked!')
-        self.comp.AppendText('file.c:23:you messed up!')
-        self.SetStatusText('look, i set the status text!')
+        self.clear_compiler_window(None)
+        self.append_compiler_output(None, 'file.c:23:you messed up!')
+        self.set_compiler_status(None, 15)
 
     def MakeNewTab(self, name):
         page = CPPStyledTextCtrl(self.nb)
@@ -211,6 +219,49 @@ class SketchFrame(wx.Frame):
     def OnSerialMonitor(self, evt):
         print 'not done!'       # TODO
 
+    #------------------------ UserInterface methods -------------------------#
+
+    def show_warning(self, sketch, message):
+        popup = wx.MessageDialog(None, message[0], message[1],
+                                 wx.ICON_EXCLAMATION)
+        popup.ShowModal()
+        popup.Destroy()
+
+    def show_error(self, sketch, message):
+        popup = wx.MessageDialog(None, message[0], message[1],
+                                 wx.ICON_ERROR)
+        popup.ShowModal()
+        popup.Destroy()
+
+    def redisplay(self, sketch):
+        page_count = self.nb.GetPageCount()
+        for basename, source in sketch.sources:
+            page = self._pages[basename]
+            page_count -= 1
+            page_idx = self.nb.GetPageIndex(page)
+            if page_idx == wx.NOT_FOUND:
+                print 'weird:',basename # TODO better error reporting
+                page = self.MakeNewTab(basename)
+                page.SetText(source)
+            else:
+                self.nb.SetPageText(page_idx, source)
+        if page_count != 0: print 'page count is weird:',page_count
+
+    def clear_compiler_window(self, sketch):
+        self.comp.Clear()
+
+    def append_compiler_output(self, sketch, line):
+        # TODO parse the line to see if it looks like a compiler error
+        # and make a clickable link if so
+        self.comp.AppendText(line)
+
+    def set_compiler_status(self, sketch, status):
+        self.SetStatusText("Compiler exit status: %d" % status)
+        if status == STATUS_SUCCESS:
+            self.SetCaptionText('Done compiling.')
+        else:
+            self.SetCaptionText('Compilation was unsuccessful.')
+
 #------------------------------------------------------------------------------
 
 assertMode = wx.PYAPP_ASSERT_EXCEPTION
@@ -231,7 +282,7 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         self.menu_bar = self._make_menu_bar()
 
         ## Initial sketch frame
-        self.frame = self._make_sketch_frame()
+        self.frame = self._make_sketch_frame(None) # FIXME an actual sketch
         self.SetTopWindow(self.frame)
         return True
 
@@ -364,14 +415,14 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
         return menu_bar
 
-    def _make_sketch_frame(self):
-        frame = SketchFrame()
+    def _make_sketch_frame(self, sketch):
+        frame = SketchFrame(sketch)
         frame.SetMenuBar(self.menu_bar)
         frame.Show(True)
 
         return frame
 
-    #-------------------------------------------------------------------------#
+    #-------------------------------------------------------------------------
 
     def NotImplementedPopup(self):
         popup = wx.MessageDialog(None, "Sorry!", "Not implemented yet", wx.OK)
@@ -425,7 +476,6 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
     def OnWidgetInspector(self, evt): # TODO remove
         wx.lib.inspection.InspectionTool().Show()
-
 
     #----------------------- Edit Menu event handlers ------------------------#
 
@@ -556,6 +606,7 @@ class MapleIDEApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
 
     def OnVisitLeafLabs(self, evt):
         webbrowser.open_new_tab('http://leaflabs.com')
+
 
 #----------------------------------------------------------------------------
 

@@ -2,9 +2,12 @@
 """
 
 import os
-from settings import RESOURCE_DIR
+import os.path
 
 import wx
+
+import settings
+from settings import RESOURCE_DIR
 
 colors = {'LEAF_GREEN': (63, 126, 51)}
 
@@ -44,4 +47,15 @@ def desprite_bitmap(file_name, n_pieces):
         rect = wx.Rect(x, 0, width, height)
         pieces.append(bmap.GetSubBitmap(rect))
     return pieces
+
+def sketch_dirs():
+    jn = lambda d: os.path.join(settings.SKETCHBOOK_PATH, d)
+    ds = [jn(d) for d in os.listdir(settings.SKETCHBOOK_PATH)]
+    return [d for d in ds if (os.path.isdir(d) and \
+                                  d != settings.SKETCHBOOK_LIB_PATH)]
+
+def most_recent_sketch_dir():   # TODO this gotta get fixed
+    skd = sketch_dirs()
+    skd.sort(key=os.path.getmtime, reverse=True)
+    return skd[0] if len(skd) > 0 else None
 
