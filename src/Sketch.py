@@ -16,9 +16,12 @@ SKETCH_EXTS = ['pde', 'c', 'cpp', 'h']
 
 #-----------------------------------------------------------------------------#
 
+def make_new_sketch():
+    sk = Sketch(None)
+
 class Sketch(object):
 
-    def __init__(self, main_file, user_interface):
+    def __init__(self, user_interface, main_file=None):
         """Create a Sketch object.
 
         main_file = absolute path to main sketch file in top level of
@@ -31,9 +34,10 @@ class Sketch(object):
         self.main_file = main_file
         self.main_name = os.path.basename(main_file)
         self.sketch_dir = os.path.dirname(main_file)
+        self.sketch_name = os.path.basename(self.sketch_dir)
         self.sources = self.reload_sources() # {basename: code}
         self.ui = user_interface
-        self.redisplay_ui()
+        self.saved = False
 
     def _strip_ext(self, pde_file):
         return pde_file[:-4]
@@ -43,10 +47,13 @@ class Sketch(object):
         return rsplit[1] if len(rsplit) > 1 else None
 
     def redisplay_ui(self):
-        self.ui.redisplay(self)
+        self.ui.redisplay()
 
-    def abs_path(basename):
+    def abs_path(self, basename):
         return os.path.join(self.sketch_dir, basename)
+
+    def save(self):
+        sketchbook.save(this)
 
     def reload_sources(self):
         self.num_files = 0
@@ -55,13 +62,14 @@ class Sketch(object):
         main_found = False
         for f in os.listdir(self.sketch_dir):
             abs_f = self.abs_path(f)
-            if x.startswith('.') or self._ext(f) not in SKETCH_EXTS or \
+            if f.startswith('.') or self._ext(f) not in SKETCH_EXTS or \
                     not os.path.isfile(abs_f):
                 continue
 
             if abs_f == self.main_file: main_found = True
-            with open(f, 'r') as f_in:
-                sources[f] = f_in.read()
+            with open(abs_f, 'r') as f_in:
+                source = f_in.read()
+                sources[f] = source
 
         if not main_found:
             # TODO better error reporting
@@ -84,6 +92,10 @@ class Sketch(object):
             # TODO better error reporting
             raise ValueError('%s already a source' % basename)
         self.sources[basename] = new_code
+
+    def __get_num_sources(self):
+        return len(self.sources)
+    num_sources = property(fget=__get_num_sources)
 
     def ensure_existence(self):
         if os.path.exists(self.sketch_dir): return True
@@ -109,7 +121,3 @@ class Sketch(object):
 
 #-----------------------------------------------------------------------------#
 
-if __name__ == '__main__':
-    s = Sketch('/Users/mbolivar/foo.pde')
-    print 'sketch_dir:', s.sketch_dir
-    print 'main_file_name:', s.main_file_name
