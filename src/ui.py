@@ -7,27 +7,25 @@ class UserInterface(object):
     to interact with the non-GUI components.
     """
 
-    # don't use abstract base classes so we can still use python 2.5
+    # don't use abstract base classes so we can still use python 2.5?
 
-    #-------------------------- You implement these --------------------------#
-
-    def show_warning(self, sketch, message):
+    def show_warning(self, message, details):
         raise NotImplementedError()
 
-    def show_error(self, sketch, message):
+    def show_error(self, message, details):
         raise NotImplementedError()
 
-    def redisplay(self, sketch):
+    def redisplay(self):
         """Restore the sketch's on-screen state.
         """
         raise NotImplementedError()
 
-    def clear_compiler_window(self, sketch):
+    def clear_compiler_window(self):
         raise NotImplementedError()
 
-    def append_compiler_output(self, sketch, line):
+    def append_compiler_output(self, line):
         raise NotImplementedError()
 
-    def set_compiler_status(self, sketch, status):
+    def set_compiler_status(self, status):
         raise NotImplementedError()
 

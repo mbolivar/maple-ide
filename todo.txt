@@ -28,6 +28,7 @@ TABS
 
 - tabs show you when they have unsaved information
 - new tab icon
+- don't let tabs close? or do something clever if they _do_ close?
 
 MENU
 ----
@@ -56,3 +57,9 @@ KEYBINDINGS
 -----------
 
 - "quit" keybinding (CMD-Q on OS X e.g.) is wrongly mapped to "close" action
+
+DIALOGS
+-------
+
+- "Save As" dialog needs to display the contents of the directory
+  being saved to

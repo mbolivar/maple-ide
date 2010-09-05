@@ -5,6 +5,7 @@ the sketch, and compilation output area.
 """
 
 import os
+import shutil
 import sys
 import webbrowser
 from pprint import pprint
@@ -68,7 +69,15 @@ class SketchFrame(wx.Frame, UserInterface):
         self.CreateStatusBar()
 
         # tabbed view of current sketch
+        # FIXME disallow closing of tabs -- might have to switch AUI
+        # implementation
         self.nb = wx.aui.AuiNotebook(self)
+        # was trying this + SetCloseButton, but !@#$, it doesn't exist
+        #                              style=wx.aui.AUI_NB_TOP | \
+        #                                  wx.aui.AUI_NB_TAB_MOVE | \
+        #                                  wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
+        # print 'notebook shit:'
+        # pprint(dir(self.nb))
 
         # compiler output
         self.comp = wx.TextCtrl(self, -1, '', wx.DefaultPosition,
@@ -231,7 +240,6 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def MakeNewTab(self, name):
         page = CPPStyledTextCtrl(self.nb)
-        print 'adding new name:',name
         self.nb.AddPage(page, name)
         return page
 
@@ -243,6 +251,10 @@ class SketchFrame(wx.Frame, UserInterface):
         self.__mgr.Update()
 
     def SetSketch(self, sketch):
+        """Sets the sketch the current frame is viewing, and
+        redisplays the UI based on the code objects in the sketch.
+        Does not force `reload_sources' on the passed sketch.
+        """
         self.sketch = sketch
 
         # clear the compiler output
@@ -299,6 +311,11 @@ class SketchFrame(wx.Frame, UserInterface):
         new_frame = make_sketch_frame(sketch_file, pos=(x+20,y+20))
         new_frame.Show(True)
 
+    def _sync_sketch(self):
+        # TODO check that the sketch agrees about what exactly the pages are
+        for basename, page in self._pages.iteritems():
+            self.sketch.replace_source(basename, page.GetText())
+
     #----------------------- File Menu event handlers ------------------------#
 
     def OnNewSketch(self, evt):
@@ -306,14 +323,13 @@ class SketchFrame(wx.Frame, UserInterface):
         not_implemented_popup()
 
     def OnOpenSketch(self, evt):
-        dialog = wx.FileDialog(None, "Open a Maple Sketch...",
+        dialog = wx.FileDialog(None, "Open a Maple sketch...",
                                defaultDir=settings.SKETCHBOOK_PATH,
                                wildcard="*.pde",
                                style=wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
-        dialog.ShowModal()
+        if dialog.ShowModal() != wx.ID_OK: return
         path = dialog.GetPath()
         dialog.Destroy()
-        if path == "": return   # user hit cancel
         self.OpenSketchNewFrame(path)
 
     def OnSketchBookSubmenu(self, evt):
@@ -330,12 +346,33 @@ class SketchFrame(wx.Frame, UserInterface):
         self.Destroy()
 
     def OnSave(self, evt):
-        # TODO
-        not_implemented_popup()
+        self._sync_sketch()
+        if self.sketch.save(): SB.mark_saved(self.sketch)
+        else: self.OnSaveAs(evt)
 
     def OnSaveAs(self, evt):
-        # TODO
-        not_implemented_popup()
+        self._sync_sketch()
+        default_file = self.sketch.sketch_name or ""
+        path = wx.FileSelector("Save Maple sketch as...",
+                               default_path=settings.SKETCHBOOK_PATH,
+                               default_filename=default_file,
+                               flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT,
+                               parent=self)
+        if path == "": return   # user hit cancel
+        path = path.rstrip(os.path.sep)
+        if not os.path.isdir(path):
+            try:
+                os.makedirs(path)
+            except:
+                bn = os.path.basename(path)
+                err = ("Could not save to folder '%s', please choose " + \
+                           "another folder") % bn
+                error_popup("Save failed", err)
+                return
+        self.sketch.reset_directory(path)
+        # it doesn't matter if this doesn't work, as we're already in
+        # "save as", so they'll choose another directory themselves
+        self.sketch.save()
 
     def OnUpload(self, evt):
         # TODO
@@ -492,11 +529,11 @@ class SketchFrame(wx.Frame, UserInterface):
 
     #------------------------ UserInterface methods --------------------------#
 
-    def show_warning(self, message):
-        warning_popup(message[0], message[1])
+    def show_warning(self, message, details):
+        warning_popup(message, details)
 
-    def show_error(self, message):
-        error_popup(message[0], message[1])
+    def show_error(self, message, details):
+        error_popup(message, details)
 
     def redisplay(self):
         self.RedisplayUI()

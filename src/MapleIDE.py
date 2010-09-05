@@ -24,9 +24,11 @@ class MapleIDEApp(wx.App):
     def OnInit(self):
         self.SetAssertMode(assert_mode)
 
-        ## Initial sketch frame
+        ## Initial sketch frame -- this whole thing is shitty and
+        ## needs to be fixed
         sketch_d = sketchbook.most_recent_sketch_dir()
-        sketch_pde = os.path.join(sketch_d,os.listdir(sketch_d)[0]) # FIXME
+        sketch_pde = sketchbook.sketch_pdes(sketch_d)[0] # FIXME
+        sketch_pde = os.path.join(sketch_d, sketch_pde)
         frame = make_sketch_frame(sketch_pde)
         frame.Show(True)
         self.SetTopWindow(frame)

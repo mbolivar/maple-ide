@@ -29,15 +29,17 @@ class Sketch(object):
 
         user_interface = ui.UserInterface-alike object
         """
+        # FIXME need to allow for unsaved sketches -- means a refactor
+        # through this and SketchFrame
         if not main_file.endswith('.pde'):
             raise ValueError('invalid main file extension: %s' % main_file)
         self.main_file = main_file
         self.main_name = os.path.basename(main_file)
+        self.main_basename = self._strip_ext(self.main_name)
         self.sketch_dir = os.path.dirname(main_file)
         self.sketch_name = os.path.basename(self.sketch_dir)
         self.sources = self.reload_sources() # {basename: code}
         self.ui = user_interface
-        self.saved = False
 
     def _strip_ext(self, pde_file):
         return pde_file[:-4]
@@ -52,8 +54,31 @@ class Sketch(object):
     def abs_path(self, basename):
         return os.path.join(self.sketch_dir, basename)
 
+    def reset_directory(self, d):
+        if d == '/': raise ValueError(d)
+        self.sketch_dir = d.rstrip(os.path.sep)
+        self.sketch_name = os.path.basename(self.sketch_dir)
+
     def save(self):
-        sketchbook.save(this)
+        failed_saves = []
+        for basename, code in self.sources.iteritems():
+            path = os.path.join(self.sketch_dir, basename)
+            try:
+                with open(path, 'w') as f:
+                    f.write(code)
+            except:
+                failed_saves.append(basename)
+
+        if failed_saves:
+            if len(failed_saves) == 1:
+                err = "Could not save file " + failed_save[0]
+            else:
+                err = "The following files could not be saved: " + \
+                    ', '.join(failed_saves) + '.  Please save to another ' + \
+                    'location.'
+            self.ui.show_error("Save Failed", err)
+            return False
+        return True
 
     def reload_sources(self):
         self.num_files = 0
