@@ -1,9 +1,18 @@
 """Class for modelling a sketch, which is just a collection of files
-we compile together as a project."""
+we compile together as a project.
+
+Sketch objects are meant to represent the _desired_ on-disk state of a
+set of files.  However, if saves fail etc., a Sketch might get ahead
+of the disk.
+
+Sketches know how to compile themselves.  This mixes model/controller
+a little bit, but in a way that I'm ok with."""
 
 from __future__ import with_statement
 
 import os.path
+
+from util import temp_dir
 
 #-----------------------------------------------------------------------------#
 
@@ -54,12 +63,20 @@ class Sketch(object):
     def abs_path(self, basename):
         return os.path.join(self.sketch_dir, basename)
 
-    def reset_directory(self, d):
-        if d == '/': raise ValueError(d)
+    def reset_directory(self, d): # weird if d == '/', but whatever
         self.sketch_dir = d.rstrip(os.path.sep)
         self.sketch_name = os.path.basename(self.sketch_dir)
 
-    def save(self):
+    def compile(self, build_dir):
+        """Assumes the sketch is synced with the hard disk."""
+        self.ensure_existence() # ok, arduino, we'll check a little, too
+
+        # FINISH
+
+        self.report_size(binary_path)
+        return binary_path
+
+    def save(self, message_on_error=True):
         failed_saves = []
         for basename, code in self.sources.iteritems():
             path = os.path.join(self.sketch_dir, basename)
@@ -70,13 +87,15 @@ class Sketch(object):
                 failed_saves.append(basename)
 
         if failed_saves:
-            if len(failed_saves) == 1:
-                err = "Could not save file " + failed_save[0]
-            else:
-                err = "The following files could not be saved: " + \
-                    ', '.join(failed_saves) + '.  Please save to another ' + \
-                    'location.'
-            self.ui.show_error("Save Failed", err)
+            if message_on_error:
+                if len(failed_saves) == 1:
+                    err = 'Could not save file ' + failed_saves[0] + '. ' + \
+                        'Please save your sketch in another location.'
+                else:
+                    err = "The following files could not be saved: " + \
+                        ', '.join(failed_saves) + \
+                        '.  Please save your sketch in another location.'
+                self.ui.show_error("Save Failed", err)
             return False
         return True
 
@@ -140,8 +159,6 @@ class Sketch(object):
                                          "source code.  Some changes " + \
                                          "may be lost.  You should attempt " +\
                                          "to save your work elsewhere."])
-        finally:
-            self.redisplay_ui()
 
 
 #-----------------------------------------------------------------------------#

@@ -9,12 +9,20 @@ def not_implemented_popup():
     popup.Destroy()
 
 def warning_popup(message, details):
-    popup = wx.MessageDialog(None, "Warning: " + message, details,
+    popup = wx.MessageDialog(None, details, message,
                              wx.ICON_EXCLAMATION)
     popup.ShowModal()
     popup.Destroy()
 
 def error_popup(message, details):
-    popup = wx.MessageDialog(None, "Error: " + msg, details, wx.ICON_ERROR)
+    popup = wx.MessageDialog(None, details, message, wx.ICON_ERROR)
     popup.ShowModal()
     popup.Destroy()
+
+def save_prompt_popup(caption, message):
+    popup = wx.MessageDialog(self, message,
+                             caption=caption,
+                             style=wx.YES_NO|wx.CANCEL|wx.YES_DEFAULT)
+    result = popup.ShowModal()
+    popup.Destroy()
+    return result

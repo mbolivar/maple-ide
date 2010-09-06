@@ -12,8 +12,6 @@ from pprint import pprint
 
 import wx
 import wx.aui
-import wx.lib.inspection
-import wx.lib.mixins.inspection
 import wx.stc
 
 import resources
@@ -27,6 +25,9 @@ from Sketch import Sketch
 
 STATUS_SUCCESS = 0              # FIXME this needs a better place
 
+ABORT = 1
+CONTINUE = 0
+
 #-----------------------------------------------------------------------------#
 
 def make_sketch_frame(main_file, parent=None, id=wx.ID_ANY, pos=(50, 50),
@@ -36,6 +37,12 @@ def make_sketch_frame(main_file, parent=None, id=wx.ID_ANY, pos=(50, 50),
                         pos=pos, size=size, style=style)
     sketch = Sketch(frame, main_file)
     frame.SetSketch(sketch)
+    # the frame makes it think it's been modified, since SetSketch
+    # calls CPPStyledTextCtrl.SetText.  let it know that it's
+    # not different from the on-disk version
+    frame.modified = False
+    # prevent "undo" from removing the text we just added
+    frame.active_page.EmptyUndoBuffer()
     return frame
 
 #----------------------------------------------------------------------------#-
@@ -54,6 +61,7 @@ class SketchFrame(wx.Frame, UserInterface):
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
 
         self._pages = {}        # {basename: CPPStyledTextCtrl}
+        self.modified = False   # are there unsaved changes?
 
         # this thing totally takes the pain out of panel layout
         self.__mgr = wx.aui.AuiManager(self)
@@ -240,6 +248,7 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def MakeNewTab(self, name):
         page = CPPStyledTextCtrl(self.nb)
+        self.Bind(wx.stc.EVT_STC_CHANGE, self.OnTextChanged, page)
         self.nb.AddPage(page, name)
         return page
 
@@ -254,6 +263,8 @@ class SketchFrame(wx.Frame, UserInterface):
         """Sets the sketch the current frame is viewing, and
         redisplays the UI based on the code objects in the sketch.
         Does not force `reload_sources' on the passed sketch.
+
+        Assumes the sketch knows about `self' already.
         """
         self.sketch = sketch
 
@@ -263,6 +274,8 @@ class SketchFrame(wx.Frame, UserInterface):
         # delete existing pages in the notebook
         for i in xrange(self.nb.GetPageCount()):
             self.nb.DeletePage(i)
+
+        # FIXME there's some redundancy in the next two paragraphs
 
         # populate the notebook with pages from the sketch
         for basename, code in self.sketch.sources.iteritems():
@@ -312,14 +325,51 @@ class SketchFrame(wx.Frame, UserInterface):
         new_frame.Show(True)
 
     def _sync_sketch(self):
-        # TODO check that the sketch agrees about what exactly the pages are
+        # TODO check that the sketch agrees exactly about what the set
+        # of basenames is
         for basename, page in self._pages.iteritems():
             self.sketch.replace_source(basename, page.GetText())
 
+    def save(self, message_on_error=True):
+        self._sync_sketch()
+        if self.sketch.save(message_on_error):
+            SB.mark_saved(self.sketch)
+            self.modified = False
+            return True
+        return False
+
+    def _query_user_save(self):
+        # use before operations that the user probably wants to have
+        # saved before doing (compiling a sketch, closing a window,
+        # etc.)  returns CONTINUE if you should go ahead and do it
+        # (user said don't save/user said save and it worked), returns
+        # ABORT otherwise.
+
+        if not self.modified:
+            return CONTINUE
+        result = save_prompt_popup("There are unsaved changes",
+                                   "Save changes before continuing?")
+        if result == wx.ID_CANCEL:
+            return ABORT
+        elif result == wx.ID_YES:
+            if self.save(): return CONTINUE
+            else: return ABORT # something went wrong saving
+        elif result == wx.ID_NO:
+            return CONTINUE
+        else:
+            raise ValueError(result)
+
+    def __get_active_page(self):
+        return self.nb.GetPage(self.nb.GetSelection())
+    def __set_active_page(self, page_or_index): # UNTESTED
+        if isinstance(page_or_index, CPPStyledTextCtrl):
+            page_or_index = self.nb.GetPageIndex(page_or_index)
+        self.nb.SetSelection(page_or_index)
+    active_page = property(fget=__get_active_page,fset=__set_active_page)
+
     #----------------------- File Menu event handlers ------------------------#
 
-    def OnNewSketch(self, evt):
-        # TODO
+    def OnNewSketch(self, evt): # TODO
         not_implemented_popup()
 
     def OnOpenSketch(self, evt):
@@ -332,26 +382,17 @@ class SketchFrame(wx.Frame, UserInterface):
         dialog.Destroy()
         self.OpenSketchNewFrame(path)
 
-    def OnSketchBookSubmenu(self, evt):
-        # TODO
-        not_implemented_popup()
-
-    def OnExamplesSubmenu(self, evt):
-        # TODO
-        not_implemented_popup()
-
     def OnClose(self, evt):
-        # TODO prompt to save etc.
+        if self._query_user_save() == ABORT:
+            return
+
         self.__mgr.UnInit()
         self.Destroy()
 
     def OnSave(self, evt):
-        self._sync_sketch()
-        if self.sketch.save(): SB.mark_saved(self.sketch)
-        else: self.OnSaveAs(evt)
+        if not self.save(): self.OnSaveAs(evt)
 
     def OnSaveAs(self, evt):
-        self._sync_sketch()
         default_file = self.sketch.sketch_name or ""
         path = wx.FileSelector("Save Maple sketch as...",
                                default_path=settings.SKETCHBOOK_PATH,
@@ -359,137 +400,111 @@ class SketchFrame(wx.Frame, UserInterface):
                                flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT,
                                parent=self)
         if path == "": return   # user hit cancel
-        path = path.rstrip(os.path.sep)
+
+        path = path.rstrip(os.path.sep) # just in case
         if not os.path.isdir(path):
             try:
                 os.makedirs(path)
             except:
-                bn = os.path.basename(path)
                 err = ("Could not save to folder '%s', please choose " + \
-                           "another folder") % bn
+                           "another folder") % os.path.basename(path)
                 error_popup("Save failed", err)
                 return
+
         self.sketch.reset_directory(path)
-        # it doesn't matter if this doesn't work, as we're already in
-        # "save as", so they'll choose another directory themselves
-        self.sketch.save()
+        self.save()
 
-    def OnUpload(self, evt):
-        # TODO
+    def OnUpload(self, evt): # TODO
         not_implemented_popup()
 
-    def OnPageSetup(self, evt):
-        # TODO
+    def OnPageSetup(self, evt): # TODO
         not_implemented_popup()
 
-    def OnPrint(self, evt):
-        # TODO
+    def OnPrint(self, evt): # TODO
         not_implemented_popup()
 
     #----------------------- Edit Menu event handlers ------------------------#
 
     def OnUndo(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.Undo()
 
     def OnRedo(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.Redo()
 
     def OnCut(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.Cut()
 
     def OnCopy(self, evt):
-        # TODO
+        self.active_page.Copy()
+
+    def OnCopyForForum(self, evt): # TODO
         not_implemented_popup()
 
-    def OnCopyForForum(self, evt):
-        # TODO
-        not_implemented_popup()
-
-    def OnCopyAsHTML(self, evt):
-        # TODO
+    def OnCopyAsHTML(self, evt): # TODO (use pygments?)
         not_implemented_popup()
 
     def OnPaste(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.Paste()
 
     def OnSelectAll(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.SelectAll()
 
     def OnCommentUncomment(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.ToggleCommentUncomment()
 
     def OnIncreaseIndent(self, evt):
-        # TODO
-        not_implemented_popup()
+        self.active_page.IncreaseIndent()
 
     def OnDecreaseIndent(self, evt):
-        # TODO
+        self.active_page.DecreaseIndent()
+
+    def OnFind(self, evt): # TODO
         not_implemented_popup()
 
-    def OnFind(self, evt):
-        # TODO
-        not_implemented_popup()
-
-    def OnFindNext(self, evt):
-        # TODO
+    def OnFindNext(self, evt): # TODO
         not_implemented_popup()
 
     #---------------------- Sketch Menu event handlers -----------------------#
 
     def OnVerify(self, evt):
-        # TODO
+        if self._query_user_save() == ABORT:
+            return
+
+        self.sketch.compile()   # sketch will callback updates
+
+    def OnStop(self, evt): # TODO
         not_implemented_popup()
 
-    def OnStop(self, evt):
-        # TODO
+    def OnShowSketchFolder(self, evt): # TODO
         not_implemented_popup()
 
-    def OnShowSketchFolder(self, evt):
-        # TODO
+    def OnImportLibrary(self, evt): # TODO
         not_implemented_popup()
 
-    def OnImportLibrary(self, evt):
-        # TODO
-        not_implemented_popup()
-
-    def OnAddFile(self, evt):
-        # TODO
+    def OnAddFile(self, evt): # TODO
         not_implemented_popup()
 
     #----------------------- Tools Menu event handlers -----------------------#
 
-    def OnAutoFormat(self, evt):
-        # TODO
+    def OnAutoFormat(self, evt): # TODO
         not_implemented_popup()
 
-    def OnArchiveSketch(self, evt):
-        # TODO
+    def OnArchiveSketch(self, evt): # TODO
         not_implemented_popup()
 
-    def OnFixEncodingAndReload(self, evt):
-        # TODO
+    def OnFixEncodingAndReload(self, evt): # TODO
         not_implemented_popup()
 
-    def OnSerialMonitor(self, evt):
-        # TODO
+    def OnSerialMonitor(self, evt): # TODO
         not_implemented_popup()
 
-    def OnBoardsSubmenu(self, evt):
-        # TODO
+    def OnBoardsSubmenu(self, evt): # TODO
         not_implemented_popup()
 
-    def OnSerialPortSubmenu(self, evt):
-        # TODO
+    def OnSerialPortSubmenu(self, evt): # TODO
         not_implemented_popup()
 
-    def OnBurnBootloader(self, evt):
-        # TODO
+    def OnBurnBootloader(self, evt): # TODO
         not_implemented_popup()
 
     #----------------------- Help menu event handlers ------------------------#
@@ -521,10 +536,10 @@ class SketchFrame(wx.Frame, UserInterface):
     ## mostly don't need to be written.  all but these taken care of
     ## by existing menu bar handlers.
 
-    def OnNewSketchToolbar(self, evt):
+    def OnNewSketchToolbar(self, evt): # TODO
         not_implemented_popup()
 
-    def OnOpenSketchToolbar(self, evt):
+    def OnOpenSketchToolbar(self, evt): # TODO
         not_implemented_popup()
 
     #------------------------ UserInterface methods --------------------------#
@@ -553,5 +568,10 @@ class SketchFrame(wx.Frame, UserInterface):
             self.SetCaptionText('Done compiling.')
         else:
             self.SetCaptionText('Compilation was unsuccessful.')
+
+    #------------------------ Other handler methods --------------------------#
+
+    def OnTextChanged(self, evt):
+        self.modified = True
 
 #-----------------------------------------------------------------------------#

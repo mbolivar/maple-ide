@@ -1,5 +1,20 @@
+from pprint import pprint
+
 import wx
 import wx.stc
+
+# tabs and spaces.  these values are set mostly according to my
+# personal religion [mbolivar], except that tab doesn't do
+# indentation, it just causes a tab to be inserted; IDE users might
+# get surprised/frustrated by tab = indent-line
+PRIMARY_OFFSET = 4
+TAB_WIDTH = 4
+USE_TABS = False
+TAB_INDENTS_LINE = False
+
+# the best primer on StyledTextCtrl i could find (it's old but good):
+#
+# http://www.yellowbrain.com/stc/index.html
 
 class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
     """A CPPStyledTextCtrl is a text editor window that knows how to
@@ -9,12 +24,6 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         wx.stc.StyledTextCtrl.__init__(self, parent, id=wx.ID_ANY,
                                        style=wx.NO_BORDER | wx.TE_MULTILINE)
 
-        # !@#$ this was badly documented. best i could find was
-        # http://www.yellowbrain.com/stc/index.html
-        #
-        # in particular:
-        # http://www.yellowbrain.com/stc/lexing.html
-        # http://www.yellowbrain.com/stc/styling.html
         self.SetLexer(wx.stc.STC_LEX_CPP)
 
         # specify the c++ keywords.  it's crap that i have to, given
@@ -52,7 +61,7 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         self.StyleSetForeground(wx.stc.STC_C_COMMENTDOCKEYWORDERROR, gray)
         self.StyleSetForeground(wx.stc.STC_C_COMMENTLINE, gray)
         self.StyleSetForeground(wx.stc.STC_C_COMMENTLINEDOC, gray)
-        self.StyleSetForeground(wx.stc.STC_C_IDENTIFIER, goldenrod)
+        self.StyleSetForeground(wx.stc.STC_C_IDENTIFIER, 'BLACK')
         self.StyleSetForeground(wx.stc.STC_C_NUMBER, 'BLUE')
         self.StyleSetForeground(wx.stc.STC_C_PREPROCESSOR, 'FIREBRICK')
         # dunno wtf these are, but they exist, just so you know:
@@ -65,11 +74,78 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         self.SetProperty("fold.preprocessor", "0")
         self.SetProperty("fold.compact", "0")
 
-        # tabs and spaces.  these values are set mostly according to
-        # my personal religion [mbolivar], except that tab doesn't do
-        # indentation, it just causes a tab to be inserted; IDE users
-        # might get surprised/frustrated by tab = indent-line
-        self.SetUseTabs(False)
-        self.SetTabWidth(4)
-        self.SetTabIndents(False)
+        self.SetUseTabs(USE_TABS)
+        self.SetTabWidth(TAB_WIDTH)
+        self.SetTabIndents(TAB_INDENTS_LINE)
 
+    def _lfp(self, p):          # convenience
+        return self.LineFromPosition(p)
+
+    def GetCurrentLine(self):
+        return self._lfp(self.GetCurrentPos())
+
+    def GenSelectedLineNumbers(self):
+        """Returns a generator of all of the currently selected line
+        numbers, in order.  If there is no selection, the generator
+        will just yield the line containing the current position."""
+        si, sf = self.GetSelection()
+        return xrange(self._lfp(si), self._lfp(sf) + 1)
+
+    def GenSelectedLines(self):
+        """Like `GenSelectedLineNumbers', except it returns the lines
+        themselves, newline-terminated."""
+        return (self.GetLine(l) for l in self.GenSelectedLineNumbers())
+
+    def DecreaseIndent(self):
+        for l in self.GenSelectedLineNumbers():
+            i = self.GetLineIndentation(l)
+            self.SetLineIndentation(l, max(i - PRIMARY_OFFSET, 0))
+
+    def IncreaseIndent(self):
+        for l in self.GenSelectedLineNumbers():
+            i = self.GetLineIndentation(l)
+            self.SetLineIndentation(l, i + PRIMARY_OFFSET)
+
+    def _select_whole_lines(self):
+        # increase the current selection to extend from the beginning
+        # of the line it starts on, to the end of the line it finishes
+        # at ***UNLESS*** the selection ends at the _beginning_ of a
+        # line.  in this case, move the end back one character.
+        si, sf = self.GetSelection()
+        li, lf = self._lfp(si), self._lfp(sf)
+
+        # reposition si to the beginning of its line
+        si = self.PositionFromLine(li)
+
+        # reposition sf
+        sf_pfl = self.PositionFromLine(lf)
+        if sf == sf_pfl:
+            # sf is at the beginning of line lf => place it at the end
+            # of line lf - 1, unless yadda yadda corner cases
+            sf = self.GetLineEndPosition(max(lf - 1, 0))
+        else:
+            # sf is at a nonzero column => pull it to the end of lf
+            sf = self.GetLineEndPosition(lf)
+
+        # reset the selection.
+        self.SetSelection(si, sf)
+
+    def _is_comment_or_blank(self, line):
+        return line.lstrip().startswith('//') or line.strip() == '';
+
+    def ToggleCommentUncomment(self):
+        old_sel = self.GetSelectedText()
+        self._select_whole_lines()
+
+        commenting = False
+        lines = []
+        for line in self.GenSelectedLines():
+            if not self._is_comment_or_blank(line): commenting = True
+            lines.append(line)
+
+        # suck it, java
+        if commenting: new_lines = ['//' + l for l in lines]
+        else: new_lines = [l.replace('//','',1) for l in lines]
+        new_lines[-1] = new_lines[-1].rstrip() # or we'll insert an extra \n
+
+        self.ReplaceSelection(''.join(new_lines))

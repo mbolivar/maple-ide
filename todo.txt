@@ -19,10 +19,6 @@ DOCUMENTATION
   File menu will break (alternative is to os.walk and DTRT, but that's
   more complicated than i have time for right now).
 
-STARTUP
--------
-- on startup, remembers your last sketch and brings it up
-
 TABS
 ----
 
@@ -33,7 +29,7 @@ TABS
 MENU
 ----
 
-- undo/redo should be grayed out as appropriate
+- undo/redo/cut/copy/paste should be grayed out as appropriate
 - need to have the app not be "Python" (probably requires building a .app)
 
 TOOLBAR
@@ -46,6 +42,9 @@ RESOURCES
 ---------
 
 - reference directory needs to get more brains
+- the examples directory in our current build has examples you can
+  save to.  this is wrong, and should not be true in the builds of the
+  new IDE.
 
 MAC
 ---
@@ -58,8 +57,8 @@ KEYBINDINGS
 
 - "quit" keybinding (CMD-Q on OS X e.g.) is wrongly mapped to "close" action
 
-DIALOGS
--------
+CPPStyledTextCtrl
+-----------------
 
-- "Save As" dialog needs to display the contents of the directory
-  being saved to
+- add brace/paren matching
+- need to place the cursor inside of the active page during frame startup
