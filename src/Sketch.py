@@ -141,9 +141,9 @@ class Sketch(object):
         finally:
             self.compiling = False
 
-    def preprocess(self):
-        # FIXME: for now, assume the sketch files are valid C++ files
-        # that #include each other as appropriate
+    def preprocess(self): # FIXME
+        # for now, assume the sketch files are valid C++ files that
+        # #include each other as appropriate
         abs = lambda b: os.path.join(self.dir, b)
         for basename in self.sources:
             strip = self._strip_ext(basename)
@@ -175,8 +175,9 @@ class Sketch(object):
             line = self.prettify_compiler_line(out_err.readline())
             self.ui.append_subprocess_output(line)
             status = child.poll()
-        # FIXME maybe need to pull out the rest of the lines -- some
-        # seem to be missing from the subprocess window
+        # FIXME maybe need to pull out the rest of the lines (run a
+        # final out_err.readlines() here) -- some seem to be missing
+        # from the subprocess window; not sure
         self.ui.set_status(status, 'compilation')
 
     def prettify_compiler_line(self, line): # TODO
@@ -292,7 +293,8 @@ class Sketch(object):
 
 class Code(object):
     """Source for a sketch file and associated data."""
-
+    # ok, so there's no associated data yet, but there will be once
+    # preprocessing works
     def __init__(self, code):
         self.code = code
 

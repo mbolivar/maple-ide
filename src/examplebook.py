@@ -8,7 +8,7 @@ from os.path import isdir, join
 
 import settings
 
-EXAMPLES = settings.EXAMPLEBOOK_PATH
+EXAMPLES = settings.EXAMPLEBOOK_DIR
 
 def _abs(c): return join(EXAMPLES, c)
 

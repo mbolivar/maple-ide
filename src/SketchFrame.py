@@ -323,6 +323,8 @@ class SketchFrame(wx.Frame, UserInterface):
         self.save()
 
     def OnUpload(self, evt):
+        if self._query_user_save('uploading') == ABORT:
+            return
         self.sketch.upload()
 
     def OnPageSetup(self, evt): # TODO
@@ -351,7 +353,7 @@ class SketchFrame(wx.Frame, UserInterface):
     def OnCopyForForum(self, evt): # TODO
         not_implemented_popup()
 
-    def OnCopyAsHTML(self, evt): # TODO (use pygments?)
+    def OnCopyAsHTML(self, evt): # TODO (use pygments!)
         not_implemented_popup()
 
     def OnPaste(self, evt):
@@ -378,6 +380,10 @@ class SketchFrame(wx.Frame, UserInterface):
     #---------------------- Sketch Menu event handlers -----------------------#
 
     def OnVerify(self, evt):
+        # FIXME need to communicate the various compliation settings
+        # -- what board to use, RAM vs. FLASH, etc.  that means making
+        # menus for them (see TODOs in _make_menu_bar), storing the
+        # results, and passing them to compile.
         if self._query_user_save() == ABORT:
             return
         # the sketch will call back any results to display via
@@ -445,7 +451,7 @@ class SketchFrame(wx.Frame, UserInterface):
 
     #------------------------ Toolbar event handlers -------------------------#
 
-    ## mostly don't need to be written.  all but these taken care of
+    ## mostly don't need to be written.  all but these are taken care of
     ## by existing menu bar handlers.
 
     def OnNewSketchToolbar(self, evt):
@@ -459,7 +465,7 @@ class SketchFrame(wx.Frame, UserInterface):
         path = self._query_user_sketch()
         if path is None: return
         self.sketch = Sketch(self, path)
-        self.SetTitle(self.sketch.name)
+        self.SetTitle('MapleIDE | ' + self.sketch.name)
         self.not_really_modified()
 
     #------------------------ UserInterface methods --------------------------#
