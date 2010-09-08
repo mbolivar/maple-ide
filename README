@@ -1,0 +1,189 @@
+NOTES 4 Dr3wSh4p!!!!!!!!
+========================
+
+Right now a lot of system settings are just stubbed out, and I've only
+run it on OS X 10.6.4, but it'll probably work on Linux.  Windows is
+getting put off until we can use it on UNIX-y OSes.
+
+REQUIREMENTS
+------------
+
+You'll need to install wxPython to get started:
+
+http://www.wxpython.org/
+
+You also need the Unix toolchain:
+
+http://leaflabs.com/docs/libmaple/unix-toolchain/
+
+(We'll bundle all this stuff up nice when we're done getting it working)
+
+STRUCTURE 
+---------
+
+- resources/: this is where i'm putting any data resources the app
+  depends on.  right now it contains:
+
+       examples/: these are just the regular examples from the
+       existing IDE
+
+       reference/: maple ref docs, stolen from existing
+
+       buttons.png: a (quick/dirty) file containing the main toolbar
+       buttons
+
+- todo.txt: a bunch of things that need to get done that i don't have
+  time for just yet.  their descriptions are just shorthand that are
+  probably confusing if you're not me.  if any of them looks like
+  something you might want to do, but you're not clear exactly what i
+  mean, ask and i'll explain better.
+
+  there are also a bunch of TODO and FIXME comments throughout the
+  source code, which lives in
+
+- src:/ i was going to use model/view/controller but it seemed like
+  overkill, so it's pretty much a (model+controller)/view setup.
+  please don't violate this abstraction.
+
+  what i would say you should do is read this document and browse the
+  source until you feel like you understand what's going on, then look
+  at todo.txt and grep for TODO/FIXME until you find something you
+  want to do, do it, rinserepeat.
+
+  **********************************************************************
+  DO NOT PUT any literal tab characters or trailing whitespace in any
+  code you push.  i will remove them, and then yell at you (actually,
+  my emacs is set up to automatically remove them, but i'll yell at
+  you all on my own). yes, i am serious. for help see:
+
+  http://www.gnu.org/software/emacs/emacs-lisp-intro/html_node/Indent-Tabs-Mode.html
+  http://www.gnu.org/software/emacs/manual/html_node/emacs/Useless-Whitespace.html
+  **********************************************************************
+
+  settings.py: YOU MUST EDIT THIS FILE BEFORE RUNNING THE CODE. go
+               look at it now.  this stores where various things are
+               in the system (where to find "make", where the user's
+               sketches are, where the resources are, etc.).
+
+               hopefully this goes without saying, but as you make
+               changes, NOTHING external to the source directory
+               should be hardcoded in; make a setting for it and refer
+               to the settings module instead.
+
+  MapleIDE: this is the main entry point to the program.  fix up your
+            settings.py, then just run it like
+                 $ cd src/
+                 $ ./MapleIDE
+
+  hurray!  right now you can do the usual open/edit/save stuff.  you
+  can also compile and upload to Maple, provided that you write C++
+  sketches, instead of the simplified language of the IDE.  i'm
+  working on preprocessing now.
+
+  any feature that isn't implemented will popup a window saying it's
+  not done when you try to use it.
+
+  okay, so now you want to know how the rest of it works? well...
+
+  [view]
+  CPPStyledTextCtrl.py: wx.stc.StyledTextCtrl is a text box that we
+                        use to handle parsing C++ and doing syntax
+                        highlighting.  this class is a pretty minimal
+                        subclass to enable the basic functionality.
+
+                        i wouldn't recommend reading too deeply into
+                        this just yet; just take a look at how it's
+                        set up.  StyledTextCtrl is a big hairy
+                        machine.
+
+                        but if you must, the best docs for it are here
+                        (a little old, they refer to a time when the
+                        `wx' module was called `wxPython'):
+
+                        http://www.yellowbrain.com/stc/index.html
+
+  [model+controller]
+  Sketch.py: this models the sketch itself -- it knows where all the
+             files are, what's in them, etc.  this gets out of sync as
+             you edit text, but gets re-synced up when you save.
+
+             so remember when i said that model and controller got
+             mashed together?  yeah, well, besides modelling the
+             sketch, Sketch objects know how to save(), compile(), and
+             upload() themselves.
+
+             when a Sketch is constructed, it gets handed an object
+             that is its user interface.  there's an interface down
+             (in ui.py) for how this object is supposed to behave.
+             Sketch objects communicate the results of the operations
+             (compiling, saving, etc.) performed upon them through the
+             use of these callback methods.  more details on this...
+
+  [view]
+  SketchFrame.py: the class BetterAuiNotebook is just a convenience
+                  wrapper around wx.aui.AuiNotebook, which implements
+                  a tabbed view of the source windows (which, for us,
+                  are CPPStyledTextCtrl objects).  ignore for now.
+
+                  the real meat is in the SketchFrame class.  each IDE
+                  window with the toolbar buttons you can click to
+                  verify/compile etc. is one of these objects.  these
+                  implement the UserInterface interface. (which of
+                  course exists so there's not a dependency of the
+                  modelcontroller on the view).
+
+                  (in wx, a "frame" is like an emacs frame -- a
+                  cohesive, on-screen window you can drag, minimize,
+                  etc.  a "window" is like an emacs window -- some UI
+                  widget that takes up real estate on a frame.)
+
+                  wx is event-driven.  if you don't know what this
+                  means, go read this:
+                  http://en.wikipedia.org/wiki/Event-driven_programming
+
+                  i'm not going to go into too many details here,
+                  because if you understand event-driven programming,
+                  i think that the SketchFrame source itself is
+                  well-written and -commented enough to be its own
+                  best documentation.  feel free to bug me with any
+                  particular questions, though.
+
+  what's left?
+
+  [model+controller]
+  sketchbook.py: this is where functions that operate on the user's
+                 sketch directory live.  it's also got a mechanism for
+                 generating fresh sketches that we use in
+                 SketchFrame.py when you ask for a new sketch --
+                 basically, we keep a set called _unsaved_sketches,
+                 and when you ask for a new sketch, it makes up a file
+                 name that
+                      
+                        1. you haven't already used in your sketchbook
+
+                        2. you haven't already used as a new sketch
+                        previously during this session.
+
+                 and makes a Sketch object for it without saving it on
+                 disk yet. the end result acts exactly like it does in
+                 Arduino.  when a SketchFrame saves its Sketch, it
+                 lets the sketchbook know, so it can remove
+                 it from the set of unsaved sketches.
+
+                 right now, i'm not allowing Sketch to know that
+                 sketchbook exists, as that would be a circular
+                 dependency i don't have a compelling reason to allow.
+                 so try not to import sketchbook within Sketch.py
+                 unless it's really stupid not to.
+
+  and finally
+
+  [model+controller]
+  examplebook.py: like sketchbook, except with the pre-made examples.
+
+  [view]
+  wx_util.py: convenience functions for making popups.  anything
+              general enough that more than one GUI class wants to use
+              it should get put here.
+
+OKGO

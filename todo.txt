@@ -1,0 +1,50 @@
+General TODO notes on the IDE rewrite.
+
+COMPILATION
+-----------
+
+- need to fix the makefile so that the file names aren't so damn long
+
+TABS
+----
+
+- tabs show you when they have unsaved information
+- new tab icon
+- don't let tabs close? or do something clever if they _do_ close?
+
+MENU
+----
+
+- undo/redo/cut/copy/paste should be grayed out as appropriate
+- need to have the app not be "Python" (probably requires building a .app)
+
+TOOLBAR
+-------
+
+- mouseover support
+- text listing what the button does should appear
+
+RESOURCES
+---------
+
+- reference directory needs to get more brains
+- the examples directory in our current build has examples you can
+  save to.  this is wrong, and should not be true in the builds of the
+  new IDE.
+
+MAC
+---
+
+- either persist the application after the last frame has been closed,
+  or prompt the user if they're sure when destroying the last frame
+
+KEYBINDINGS
+-----------
+
+- "quit" keybinding (CMD-Q on OS X e.g.) is wrongly mapped to "close" action
+
+CPPStyledTextCtrl
+-----------------
+
+- add brace/paren matching
+- need to place the cursor inside of the active page during frame startup

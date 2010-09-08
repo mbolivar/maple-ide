@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+"""Executable entry point to the IDE.
+"""
+
+import os
+import shutil
+
+import wx
+
+import settings
+import sketchbook
+from SketchFrame import SketchFrame
+
+assert_mode = wx.PYAPP_ASSERT_EXCEPTION
+
+#-----------------------------------------------------------------------------#
+
+class MapleIDEApp(wx.App):
+    def __init__(self, name):
+        self.name = name
+        wx.App.__init__(self, redirect=False)
+
+    def OnInit(self):
+        self.SetAssertMode(assert_mode)
+
+        sketch_f = sketchbook.most_recent_sketch_file()
+        frame = SketchFrame(main_file=sketch_f)
+        frame.Show(True)
+        self.SetTopWindow(frame)
+
+        return True
+
+#-----------------------------------------------------------------------------#
+
+def main():
+    app = MapleIDEApp('Maple IDE')
+    try:
+        app.MainLoop()
+    finally:
+        print 'trashing build directory %s' % settings.BUILD_DIR
+        shutil.rmtree(settings.BUILD_DIR)
+
+if __name__ == '__main__':
+    main()
