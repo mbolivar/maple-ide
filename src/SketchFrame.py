@@ -1,7 +1,7 @@
-"""SketchFrame is our view class for a Sketch and the assorted
-operations you can perform on it.  It's the usual Arduino-style
-editing window with toolbar, tabbed notebook of all the .pde files in
-the sketch, and compilation output area.
+"""SketchFrame is our view class for a Sketch and the assorted operations
+you can perform on it.  It's the usual Arduino-style editing window with
+toolbar, tabbed notebook of all the files in the sketch, and compilation
+output area.
 """
 
 import os
@@ -13,13 +13,15 @@ from pprint import pprint
 import wx
 import wx.aui
 import wx.stc
+from wx.aui import AuiNotebook
 
 import resources
 import settings
 import examplebook as EB
 import sketchbook as SB
+from settings import SKETCH_EXN as EXN
 from ui import UserInterface
-from wx_util import not_implemented_popup, warning_popup, error_popup
+from wx_util import *
 from CPPStyledTextCtrl import CPPStyledTextCtrl
 from Sketch import Sketch
 
@@ -30,34 +32,58 @@ CONTINUE = 0
 
 #-----------------------------------------------------------------------------#
 
-def make_sketch_frame(main_file, parent=None, id=wx.ID_ANY, pos=(50, 50),
-                      size=(640, 480), style=wx.DEFAULT_FRAME_STYLE):
-    basename = os.path.basename(main_file)
-    frame = SketchFrame(parent=parent, id=id, title="Maple IDE | "+basename,
-                        pos=pos, size=size, style=style)
-    sketch = Sketch(frame, main_file)
-    frame.SetSketch(sketch)
-    # the frame makes it think it's been modified, since SetSketch
-    # calls CPPStyledTextCtrl.SetText.  let it know that it's
-    # not different from the on-disk version
-    frame.modified = False
-    # prevent "undo" from removing the text we just added
-    frame.active_page.EmptyUndoBuffer()
-    return frame
+class BetterAuiNotebook(AuiNotebook):
+    # work with pages instead of freaking indexes.  seriously.
+
+    def __init__(self, parent):
+        AuiNotebook.__init__(self, parent=parent)
+
+    def GetPage(self, page):
+        if isinstance(page, int):
+            return AuiNotebook.GetPage(self,page)
+
+        idx = self.GetPageIndex(page)
+        if idx == wx.NOT_FOUND: return idx
+        return AuiNotebook.GetPage(self, idx)
+
+    def SetSelection(self, page):
+        if isinstance(page, int):
+            return AuiNotebook.SetSelection(self, page)
+
+        idx = self.GetPageIndex(page)
+        if idx == wx.NOT_FOUND: return idx
+        return AuiNotebook.SetSelection(self, idx)
+
+    def __get_pages(self):
+        """Iterable view of the pages in the notebook."""
+        return (self.GetPage(i) for i in xrange(self.GetPageCount()))
+    pages = property(fget=__get_pages)
+
+    def __get_active_page(self):
+        return self.GetPage(self.GetSelection())
+    def __set_active_page(self, page_or_index):
+        if isinstance(page_or_index, CPPStyledTextCtrl):
+            page_or_index = self.GetPageIndex(page_or_index)
+        self.SetSelection(page_or_index)
+    active_page = property(fget=__get_active_page,fset=__set_active_page)
 
 #----------------------------------------------------------------------------#-
 
 class SketchFrame(wx.Frame, UserInterface):
-    """wx.Frame for showing a sketch: verify/etc. buttons, tabbed view
-    of the files in the sketch, sketch status, window for compiler
-    output, and last compile's exit status.
+    """wx.Frame for showing a sketch.
 
-    I.e., it's mostly a rehash of the usual Wiring/Arduino interface.
+    If main_file is None, will make a new, unsaved sketch.
+
+    Verify/etc. buttons, tabbed view of the files in the sketch, sketch
+    status, window for compiler output, and last compile's exit status;
+    i.e., it's mostly a rehash of the usual Wiring/Arduino interface.
     """
 
-    def __init__(self, parent=None, id=wx.ID_ANY, title="Maple IDE",
-                 pos=(50,50), size=(640,480), style=wx.DEFAULT_FRAME_STYLE,
-                 name="Maple IDE"):
+    def __init__(self, main_file=None, parent=None, id=wx.ID_ANY,
+                 title="Maple IDE", pos=(50,50), size=(640,700),
+                 style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE"):
+        basename = os.path.basename(main_file) if main_file else None
+        title = 'Maple IDE | ' + basename if basename else 'Maple IDE'
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
 
         self._pages = {}        # {basename: CPPStyledTextCtrl}
@@ -79,18 +105,18 @@ class SketchFrame(wx.Frame, UserInterface):
         # tabbed view of current sketch
         # FIXME disallow closing of tabs -- might have to switch AUI
         # implementation
-        self.nb = wx.aui.AuiNotebook(self)
+        self.nb = BetterAuiNotebook(self)
         # was trying this + SetCloseButton, but !@#$, it doesn't exist
         #                              style=wx.aui.AUI_NB_TOP | \
         #                                  wx.aui.AUI_NB_TAB_MOVE | \
         #                                  wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
-        # print 'notebook shit:'
+        # print 'dir(self.nb):'
         # pprint(dir(self.nb))
 
-        # compiler output
-        self.comp = wx.TextCtrl(self, -1, '', wx.DefaultPosition,
-                                wx.Size(200, 150),
-                                wx.NO_BORDER | wx.TE_MULTILINE)
+        # subprocess (compiler/uploader) output goes here
+        self.sub = wx.TextCtrl(self, -1, '', wx.DefaultPosition,
+                               wx.Size(200, 150),
+                               wx.NO_BORDER | wx.TE_MULTILINE)
         comp_info = wx.aui.AuiPaneInfo()
         comp_info.Bottom()
         comp_info.CaptionVisible(True)
@@ -99,11 +125,22 @@ class SketchFrame(wx.Frame, UserInterface):
 
         # add the panes to the manager
         self.__mgr.AddPane(self.nb, wx.CENTER)
-        self.__mgr.AddPane(self.comp, info=comp_info)
+        self.__mgr.AddPane(self.sub, info=comp_info)
         self.__mgr.Update()
 
         # set frame close handler
         self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+        # All set up, so initialize the sketch.  THIS MUST BE DONE AFTER
+        # THE GUI GETS SET UP.
+        if main_file is None: self.sketch = SB.fresh_sketch(self)
+        else: self.sketch = Sketch(self, main_file)
+
+        # the sketch setter calls CPPStyledTextCtrl.SetText, but we aren't
+        # really modified yet, and we don't want the user to be able to
+        # 'undo' the changes _we_ made by sticking the file contents into
+        # our notebook's pages.
+        self.not_really_modified()
 
     #--------------------------- Menu bar creation ---------------------------#
 
@@ -244,148 +281,29 @@ class SketchFrame(wx.Frame, UserInterface):
         self.Bind(wx.EVT_TOOL, click_handler, id=tool_id)
         return tool_id
 
-    #-------------------------------------------------------------------------#
+    #------------------------------- Properties ------------------------------#
 
-    def MakeNewTab(self, name):
-        page = CPPStyledTextCtrl(self.nb)
-        self.Bind(wx.stc.EVT_STC_CHANGE, self.OnTextChanged, page)
-        self.nb.AddPage(page, name)
-        return page
-
-    def SetCaptionText(self, text):
-        # just stashing comp_info in __init__ won't work; i think
-        # AuiManager makes a fresh AuiPaneInfo for any window you give it
-        info = self.__mgr.GetPane(self.comp)
-        info.Caption(text)
-        self.__mgr.Update()
-
-    def SetSketch(self, sketch):
-        """Sets the sketch the current frame is viewing, and
-        redisplays the UI based on the code objects in the sketch.
-        Does not force `reload_sources' on the passed sketch.
-
-        Assumes the sketch knows about `self' already.
-        """
-        self.sketch = sketch
-
-        # clear the compiler output
-        self.clear_compiler_window()
-
-        # delete existing pages in the notebook
-        for i in xrange(self.nb.GetPageCount()):
-            self.nb.DeletePage(i)
-
-        # FIXME there's some redundancy in the next two paragraphs
-
-        # populate the notebook with pages from the sketch
-        for basename, code in self.sketch.sources.iteritems():
-            page = self.MakeNewTab(basename)
-            page.SetText(code)
-            self._pages[basename] = page
-
-        self.RedisplayUI()
-
-    def RedisplayUI(self):
-        """Must be called AFTER the sketch is set!
-        """
-        if self.sketch is None:
-            raise RuntimeError("no sketch set")
-
-        page_count = self.nb.GetPageCount()
-        for basename, source in self.sketch.sources.iteritems():
-            page = self._pages[basename]
-            page_idx = self.nb.GetPageIndex(page)
-            if page_idx == wx.NOT_FOUND:
-                print 'ERROR unknown:',basename # TODO better error reporting
-                page = self.MakeNewTab(basename)
-
-            page_count -= 1
-            page.SetText(source)
-        if page_count != 0:
-            print 'ERROR: page count is weird:',page_count
-
-    def OpenSketchNewFrame(self, sketch_file):
-        """Requires an absolute path to either a .pde file, or a
-        directory containing at least one .pde file.
-        """
-        if os.path.isdir(sketch_file):
-            # just pick any pde file in the directory and use that; we
-            # open all of them when we start the new frame
-            fs = [x for x in os.listdir(sketch_file) if x.endswith('.pde')]
-            if not fs:
-                error_popup("Empty Sketch Directory",
-                            "The directory:\n\t%s\ncontains no .pde files.")
-                return
-            sketch_file = os.path.join(sketch_file, fs[0])
-
-        x,y = self.GetScreenPositionTuple()
-        # FIXME [mbolivar] smarter decision making on where to put the
-        # new frame -- maybe making it a child of this frame will DTRT?
-        new_frame = make_sketch_frame(sketch_file, pos=(x+20,y+20))
-        new_frame.Show(True)
-
-    def _sync_sketch(self):
-        # TODO check that the sketch agrees exactly about what the set
-        # of basenames is
-        for basename, page in self._pages.iteritems():
-            self.sketch.replace_source(basename, page.GetText())
-
-    def save(self, message_on_error=True):
-        self._sync_sketch()
-        if self.sketch.save(message_on_error):
-            SB.mark_saved(self.sketch)
-            self.modified = False
-            return True
-        return False
-
-    def _query_user_save(self):
-        # use before operations that the user probably wants to have
-        # saved before doing (compiling a sketch, closing a window,
-        # etc.)  returns CONTINUE if you should go ahead and do it
-        # (user said don't save/user said save and it worked), returns
-        # ABORT otherwise.
-
-        if not self.modified:
-            return CONTINUE
-        result = save_prompt_popup("There are unsaved changes",
-                                   "Save changes before continuing?")
-        if result == wx.ID_CANCEL:
-            return ABORT
-        elif result == wx.ID_YES:
-            if self.save(): return CONTINUE
-            else: return ABORT # something went wrong saving
-        elif result == wx.ID_NO:
-            return CONTINUE
-        else:
-            raise ValueError(result)
-
-    def __get_active_page(self):
-        return self.nb.GetPage(self.nb.GetSelection())
-    def __set_active_page(self, page_or_index): # UNTESTED
-        if isinstance(page_or_index, CPPStyledTextCtrl):
-            page_or_index = self.nb.GetPageIndex(page_or_index)
-        self.nb.SetSelection(page_or_index)
-    active_page = property(fget=__get_active_page,fset=__set_active_page)
+    def __get_sketch(self):
+        return self.__sketch
+    def __set_sketch(self, sketch):
+        self.__sketch = sketch
+        self.redisplay(reset=True)
+    sketch = property(fget=__get_sketch, fset=__set_sketch)
 
     #----------------------- File Menu event handlers ------------------------#
 
-    def OnNewSketch(self, evt): # TODO
-        not_implemented_popup()
+    def OnNewSketch(self, evt):
+        make_sketch_frame()
 
     def OnOpenSketch(self, evt):
-        dialog = wx.FileDialog(None, "Open a Maple sketch...",
-                               defaultDir=settings.SKETCHBOOK_PATH,
-                               wildcard="*.pde",
-                               style=wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
-        if dialog.ShowModal() != wx.ID_OK: return
-        path = dialog.GetPath()
-        dialog.Destroy()
+        path = self._query_user_sketch()
+        if path is None: return
         self.OpenSketchNewFrame(path)
 
     def OnClose(self, evt):
-        if self._query_user_save() == ABORT:
+        if self._query_user_save('closing') == ABORT:
             return
-
+        self.sketch.cleanup()
         self.__mgr.UnInit()
         self.Destroy()
 
@@ -393,7 +311,7 @@ class SketchFrame(wx.Frame, UserInterface):
         if not self.save(): self.OnSaveAs(evt)
 
     def OnSaveAs(self, evt):
-        default_file = self.sketch.sketch_name or ""
+        default_file = self.sketch.name or ""
         path = wx.FileSelector("Save Maple sketch as...",
                                default_path=settings.SKETCHBOOK_PATH,
                                default_filename=default_file,
@@ -401,21 +319,11 @@ class SketchFrame(wx.Frame, UserInterface):
                                parent=self)
         if path == "": return   # user hit cancel
 
-        path = path.rstrip(os.path.sep) # just in case
-        if not os.path.isdir(path):
-            try:
-                os.makedirs(path)
-            except:
-                err = ("Could not save to folder '%s', please choose " + \
-                           "another folder") % os.path.basename(path)
-                error_popup("Save failed", err)
-                return
-
-        self.sketch.reset_directory(path)
+        self.sketch.reset_directory(path, create=True)
         self.save()
 
-    def OnUpload(self, evt): # TODO
-        not_implemented_popup()
+    def OnUpload(self, evt):
+        self.sketch.upload()
 
     def OnPageSetup(self, evt): # TODO
         not_implemented_popup()
@@ -425,17 +333,20 @@ class SketchFrame(wx.Frame, UserInterface):
 
     #----------------------- Edit Menu event handlers ------------------------#
 
+    # TODO? many of these are already keybindings in StyledTextCtrl;
+    # maybe take this out and see if everything still works
+
     def OnUndo(self, evt):
-        self.active_page.Undo()
+        self.nb.active_page.Undo()
 
     def OnRedo(self, evt):
-        self.active_page.Redo()
+        self.nb.active_page.Redo()
 
     def OnCut(self, evt):
-        self.active_page.Cut()
+        self.nb.active_page.Cut()
 
     def OnCopy(self, evt):
-        self.active_page.Copy()
+        self.nb.active_page.Copy()
 
     def OnCopyForForum(self, evt): # TODO
         not_implemented_popup()
@@ -444,19 +355,19 @@ class SketchFrame(wx.Frame, UserInterface):
         not_implemented_popup()
 
     def OnPaste(self, evt):
-        self.active_page.Paste()
+        self.nb.active_page.Paste()
 
     def OnSelectAll(self, evt):
-        self.active_page.SelectAll()
+        self.nb.active_page.SelectAll()
 
     def OnCommentUncomment(self, evt):
-        self.active_page.ToggleCommentUncomment()
+        self.nb.active_page.ToggleCommentUncomment()
 
     def OnIncreaseIndent(self, evt):
-        self.active_page.IncreaseIndent()
+        self.nb.active_page.IncreaseIndent()
 
     def OnDecreaseIndent(self, evt):
-        self.active_page.DecreaseIndent()
+        self.nb.active_page.DecreaseIndent()
 
     def OnFind(self, evt): # TODO
         not_implemented_popup()
@@ -469,11 +380,12 @@ class SketchFrame(wx.Frame, UserInterface):
     def OnVerify(self, evt):
         if self._query_user_save() == ABORT:
             return
+        # the sketch will call back any results to display via
+        # SketchFrame's UserInterface methods
+        self.sketch.compile()
 
-        self.sketch.compile()   # sketch will callback updates
-
-    def OnStop(self, evt): # TODO
-        not_implemented_popup()
+    def OnStop(self, evt):
+        self.sketch.stop_compiling()
 
     def OnShowSketchFolder(self, evt): # TODO
         not_implemented_popup()
@@ -536,11 +448,19 @@ class SketchFrame(wx.Frame, UserInterface):
     ## mostly don't need to be written.  all but these taken care of
     ## by existing menu bar handlers.
 
-    def OnNewSketchToolbar(self, evt): # TODO
-        not_implemented_popup()
+    def OnNewSketchToolbar(self, evt):
+        if self._query_user_save() == ABORT:
+            return
+        self.sketch = SB.fresh_sketch(self)
 
-    def OnOpenSketchToolbar(self, evt): # TODO
-        not_implemented_popup()
+    def OnOpenSketchToolbar(self, evt):
+        if self._query_user_save() == ABORT:
+            return
+        path = self._query_user_sketch()
+        if path is None: return
+        self.sketch = Sketch(self, path)
+        self.SetTitle(self.sketch.name)
+        self.not_really_modified()
 
     #------------------------ UserInterface methods --------------------------#
 
@@ -550,28 +470,156 @@ class SketchFrame(wx.Frame, UserInterface):
     def show_error(self, message, details):
         error_popup(message, details)
 
-    def redisplay(self):
-        self.RedisplayUI()
+    def redisplay(self, reset=False):
+        """Redisplays.  If reset=True, wipes all the tabs and assumes that
+        self.sketch is right about everything. Must be called after the
+        sketch is set."""
+        if self.sketch is None:
+            raise RuntimeError("no sketch set")
 
-    def clear_compiler_window(self):
-        self.SetStatusText("")
-        self.comp.Clear()
+        self.clear_subprocess_window()
 
-    def append_compiler_output(self, line):
-        # TODO parse the line to see if it looks like a compiler error
-        # and make a clickable link if so
-        self.comp.AppendText(line)
+        if reset:
+            self._clear_tabs()
+            # populate the notebook with pages from the sketch
+            for basename, code in self.sketch.sources.iteritems():
+                page = self.make_new_tab(basename)
+                page.SetText(code.code)
+                self._pages[basename] = page
 
-    def set_compiler_status(self, status):
-        self.SetStatusText("Compiler exit status: %d" % status)
+        page_count = self.nb.GetPageCount()
+        for basename, code in self.sketch.sources.iteritems():
+            page = self._pages[basename]
+
+            # add the page to the notebook if it doesn't exist, but we
+            # really shouldn't have todo this.  (right now, this can only
+            # happen if a user closes a tab, which mbolivar is trying to
+            # disallow but hasn't found out how, yet).
+            page_idx = self.nb.GetPageIndex(page)
+            if page_idx == wx.NOT_FOUND:
+                # TODO better error logging
+                print 'WARNING: unknown basename', basename
+                page = self.make_new_tab(basename)
+            page_count -= 1
+
+            page.SetText(code.code)
+
+        if page_count != 0:
+            # TODO better error logging
+            print 'WARNING: page_count=%d, should be 0' % page_count
+
+    def clear_subprocess_window(self):
+        self.SetStatusText('')
+        self.SetCaptionText('')
+        self.sub.Clear()
+
+    def append_subprocess_output(self, line):
+        # TODO parse compiler error lines into clickable links
+        self.sub.AppendText(line)
+
+    def set_status(self, status, status_type):
+        cap, low = status_type.capitalize(), status_type.lower()
+        self.SetStatusText("%s exit status: %d" % (cap, status))
         if status == STATUS_SUCCESS:
-            self.SetCaptionText('Done compiling.')
+            self.SetCaptionText('Finished with %s.' % low)
         else:
-            self.SetCaptionText('Compilation was unsuccessful.')
+            self.SetCaptionText('%s was unsuccessful.' % cap)
 
-    #------------------------ Other handler methods --------------------------#
+    #------------------------- Other event handlers --------------------------#
 
     def OnTextChanged(self, evt):
         self.modified = True
+
+    #--------------------- Unorganized auxiliary methods ---------------------#
+
+    def make_new_tab(self, basename):
+        page = CPPStyledTextCtrl(self.nb)
+        self.Bind(wx.stc.EVT_STC_CHANGE, self.OnTextChanged, page)
+        self.nb.AddPage(page, basename)
+        return page
+
+    def _clear_tabs(self):
+        self._pages = {}
+        for i in xrange(self.nb.GetPageCount()):
+            # it's awesome that i have to do both of these, and that it's
+            # undocumented.  awesome.
+            self.nb.RemovePage(i)
+            self.nb.DeletePage(i)
+        assert self.nb.GetPageCount() == 0
+
+    def SetCaptionText(self, text):
+        # just stashing comp_info in __init__ won't work; i think
+        # AuiManager makes a fresh AuiPaneInfo for any window you give it
+        info = self.__mgr.GetPane(self.sub)
+        info.Caption(text)
+        self.__mgr.Update()
+
+    def OpenSketchNewFrame(self, sketch_file):
+        """Requires an absolute path to either a sketch main file, or a
+        directory containing at least one such file.
+        """
+        if os.path.isdir(sketch_file):
+            sketch_file = SB.sketch_main_file(sketch_file)
+            if sketch_file is None:
+                error_popup("Empty Sketch Directory",
+                            "Directory:\n\t%s\ncontains no %s files." % EXN)
+                return
+
+        x,y = self.GetScreenPositionTuple()
+        # TODO smarter decision making on frame placement -- maybe making
+        # it a child of this frame will DTRT?
+        new_frame = SketchFrame(sketch_file, pos=(x+20,y+20))
+        new_frame.Show(True)
+
+    def _sync_sketch(self):
+        mine, sketch = set(self._pages.keys()), set(self.sketch.sources.keys())
+        if mine != sketch:      # can't happen
+            raise MalformedSketchError(str(mine) + ' vs. ' + str(sketch))
+        for basename, page in self._pages.iteritems():
+            self.sketch.replace_source(basename, page.GetText())
+
+    def save(self, message_on_error=True):
+        self._sync_sketch()
+        if self.sketch.save(message_on_error):
+            SB.mark_saved(self.sketch)
+            self.modified = False
+            return True
+        return False
+
+    def _query_user_save(self, operation='continuing'):
+        # use before operations that the user probably wants to have
+        # saved before doing (compiling a sketch, closing a window,
+        # etc.)  returns CONTINUE if you should go ahead and do it
+        # (user said don't save/user said save and it worked), returns
+        # ABORT otherwise.
+
+        if not self.modified:
+            return CONTINUE
+        result = save_prompt_popup("There are unsaved changes",
+                                   "Save changes before %s?" % operation)
+        if result == wx.ID_CANCEL:
+            return ABORT
+        elif result == wx.ID_YES:
+            if self.save(): return CONTINUE
+            else: return ABORT # something went wrong saving
+        elif result == wx.ID_NO:
+            return CONTINUE
+        else:
+            raise ValueError(result)
+
+    def _query_user_sketch(self):
+        dialog = wx.FileDialog(None, "Open a Maple sketch...",
+                               defaultDir=settings.SKETCHBOOK_PATH,
+                               wildcard="*" + EXN,
+                               style=wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
+        if dialog.ShowModal() != wx.ID_OK: return None
+        path = dialog.GetPath()
+        dialog.Destroy()
+        return path
+
+    def not_really_modified(self):
+        self.modified = False
+        for page in self.nb.pages: page.EmptyUndoBuffer()
+        self.nb.active_page = self._pages[self.sketch.main_basename]
 
 #-----------------------------------------------------------------------------#

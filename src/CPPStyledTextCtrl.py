@@ -1,7 +1,7 @@
 from pprint import pprint
 
 import wx
-import wx.stc
+from wx.stc import *
 
 # tabs and spaces.  these values are set mostly according to my
 # personal religion [mbolivar], except that tab doesn't do
@@ -16,15 +16,15 @@ TAB_INDENTS_LINE = False
 #
 # http://www.yellowbrain.com/stc/index.html
 
-class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
+class CPPStyledTextCtrl(StyledTextCtrl):
     """A CPPStyledTextCtrl is a text editor window that knows how to
     highlight C++ code."""
 
     def __init__(self, parent):
-        wx.stc.StyledTextCtrl.__init__(self, parent, id=wx.ID_ANY,
+        StyledTextCtrl.__init__(self, parent, id=wx.ID_ANY,
                                        style=wx.NO_BORDER | wx.TE_MULTILINE)
 
-        self.SetLexer(wx.stc.STC_LEX_CPP)
+        self.SetLexer(STC_LEX_CPP)
 
         # specify the c++ keywords.  it's crap that i have to, given
         # that THEY ALREADY WROTE A LEXER
@@ -51,21 +51,21 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         orange = wx.Color(204, 102, 0)
         goldenrod = wx.Color(205, 155, 29)
         self.StyleClearAll()    # cargo cult code
-        self.StyleSetForeground(wx.stc.STC_C_WORD, orange) # !@#$ KEYWORD
-        self.StyleSetForeground(wx.stc.STC_C_CHARACTER, darkish_blue)
-        self.StyleSetForeground(wx.stc.STC_C_STRING, darkish_blue)
-        self.StyleSetForeground(wx.stc.STC_C_STRINGEOL, darkish_blue)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENT, gray)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENTDOC, gray)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENTDOCKEYWORD, gray)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENTDOCKEYWORDERROR, gray)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENTLINE, gray)
-        self.StyleSetForeground(wx.stc.STC_C_COMMENTLINEDOC, gray)
-        self.StyleSetForeground(wx.stc.STC_C_IDENTIFIER, 'BLACK')
-        self.StyleSetForeground(wx.stc.STC_C_NUMBER, 'BLUE')
-        self.StyleSetForeground(wx.stc.STC_C_PREPROCESSOR, 'FIREBRICK')
+        self.StyleSetForeground(STC_C_WORD, orange) # !@#$ KEYWORD
+        self.StyleSetForeground(STC_C_CHARACTER, darkish_blue)
+        self.StyleSetForeground(STC_C_STRING, darkish_blue)
+        self.StyleSetForeground(STC_C_STRINGEOL, darkish_blue)
+        self.StyleSetForeground(STC_C_COMMENT, gray)
+        self.StyleSetForeground(STC_C_COMMENTDOC, gray)
+        self.StyleSetForeground(STC_C_COMMENTDOCKEYWORD, gray)
+        self.StyleSetForeground(STC_C_COMMENTDOCKEYWORDERROR, gray)
+        self.StyleSetForeground(STC_C_COMMENTLINE, gray)
+        self.StyleSetForeground(STC_C_COMMENTLINEDOC, gray)
+        self.StyleSetForeground(STC_C_IDENTIFIER, 'BLACK')
+        self.StyleSetForeground(STC_C_NUMBER, 'BLUE')
+        self.StyleSetForeground(STC_C_PREPROCESSOR, 'FIREBRICK')
         # dunno wtf these are, but they exist, just so you know:
-        # wx.stc.STC_C_[REGEX,DEFAULT,GLOBALCLASS,UUID,VERBATIM,WORD2]
+        # STC_C_[REGEX,DEFAULT,GLOBALCLASS,UUID,VERBATIM,WORD2]
 
         # set properties
         # TODO [mbolivar] enable folding? i hate it, but others seem not to
@@ -77,6 +77,31 @@ class CPPStyledTextCtrl(wx.stc.StyledTextCtrl):
         self.SetUseTabs(USE_TABS)
         self.SetTabWidth(TAB_WIDTH)
         self.SetTabIndents(TAB_INDENTS_LINE)
+
+        self._set_keybindings()
+
+    #------------------------------ Keybindings ------------------------------#
+
+    def _set_keybindings(self):
+        # FIXME XXX make this a preference you have to turn on!
+        self._set_basic_emacs_keybindings()
+
+    def _set_basic_emacs_keybindings(self):
+        self.CmdKeyAssign(ord('P'), STC_SCMOD_CTRL, STC_CMD_LINEUP)
+        self.CmdKeyAssign(ord('N'), STC_SCMOD_CTRL, STC_CMD_LINEDOWN)
+
+        self.CmdKeyAssign(ord('A'), STC_SCMOD_CTRL, STC_CMD_HOME)
+        self.CmdKeyAssign(ord('E'), STC_SCMOD_CTRL, STC_CMD_LINEEND)
+        self.CmdKeyAssign(ord('B'), STC_SCMOD_CTRL, STC_CMD_CHARLEFT)
+        self.CmdKeyAssign(ord('F'), STC_SCMOD_CTRL, STC_CMD_CHARRIGHT)
+
+        self.CmdKeyAssign(ord('B'), STC_SCMOD_ALT, STC_CMD_WORDLEFT)
+        self.CmdKeyAssign(ord('F'), STC_SCMOD_ALT, STC_CMD_WORDRIGHT)
+
+        self.CmdKeyAssign(STC_KEY_BACK, STC_SCMOD_ALT, STC_CMD_DELWORDLEFT)
+
+
+    #-------------------------------------------------------------------------#
 
     def _lfp(self, p):          # convenience
         return self.LineFromPosition(p)

@@ -1,23 +1,9 @@
 General TODO notes on the IDE rewrite.
 
-DOCUMENTATION
--------------
+COMPILATION
+-----------
 
-- must document the assumption that the examples directory goes
-
-  examples/category1/example1/<pde files>
-                     example2/<pde files>
-                     ...
-                     examplen/<pde files>
-           category2/example1/
-                     ...
-                     examplen/
-           ...
-           categoryn/
-
-  i.e., NO NESTED SUBCATEGORIES! otherwise the Examples submenu of the
-  File menu will break (alternative is to os.walk and DTRT, but that's
-  more complicated than i have time for right now).
+- need to fix the makefile so that the file names aren't so damn long
 
 TABS
 ----

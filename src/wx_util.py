@@ -20,7 +20,7 @@ def error_popup(message, details):
     popup.Destroy()
 
 def save_prompt_popup(caption, message):
-    popup = wx.MessageDialog(self, message,
+    popup = wx.MessageDialog(None, message,
                              caption=caption,
                              style=wx.YES_NO|wx.CANCEL|wx.YES_DEFAULT)
     result = popup.ShowModal()

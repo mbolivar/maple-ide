@@ -20,12 +20,12 @@ class UserInterface(object):
         """
         raise NotImplementedError()
 
-    def clear_compiler_window(self):
+    def clear_subprocess_window(self):
         raise NotImplementedError()
 
-    def append_compiler_output(self, line):
+    def append_subprocess_output(self, line):
         raise NotImplementedError()
 
-    def set_compiler_status(self, status):
+    def set_status(self, status, status_type):
         raise NotImplementedError()
 
