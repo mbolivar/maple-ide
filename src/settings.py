@@ -21,19 +21,19 @@ import tempfile
 # especially these prebuilt binaries + dependencies:
 # http://gnuwin32.sourceforge.net/downlinks/make-bin-zip.php
 # http://gnuwin32.sourceforge.net/downlinks/make-dep-zip.php
-MAKE_PATH = '/usr/bin/make'
+MAKE_PATH = u'/usr/bin/make'
 
 # place where your sketches live.  this should be OK on os x, if you
 # accepted the default settings on the current MapleIDE
-SKETCHBOOK_PATH = os.path.expanduser('~/Documents/MapleIDE')
+SKETCHBOOK_PATH = os.path.expanduser(u'~/Documents/MapleIDE')
 
 # place where your additional libraries live.  this should also be OK
 # on os x if you accepted the default
-SKETCHBOOK_LIB_PATH = os.path.expanduser('~/Documents/MapleIDE/libraries')
+SKETCHBOOK_LIB_PATH = os.path.expanduser(u'~/Documents/MapleIDE/libraries')
 
 # Directory containing libmaple and wirish.
 # TODO preference to allow environment variable override
-LIB_MAPLE_HOME = '/Users/mbolivar/hack/leaf/libmaple'
+LIB_MAPLE_HOME = u'/Users/mbolivar/hack/leaf/libmaple'
 
 #----------------------------- App-local settings ----------------------------#
 
@@ -43,15 +43,15 @@ LIB_MAPLE_HOME = '/Users/mbolivar/hack/leaf/libmaple'
 # The extension we use for our sketches.  DO NOT SAY .pde ANYWHERE!
 # use this instead.  it might not be a bad idea to change our file
 # extension.  not sure yet.
-SKETCH_EXN = '.pde'
+SKETCH_EXN = u'.pde'
 
 # Build directory parent: all of the sketch-level build directories
 # are contained in this top-level one.  Just to be safe, the app nukes
 # this directory within a finally: upon exit from the main loop
-BUILD_DIR = tempfile.mkdtemp(prefix='maple-build')
+BUILD_DIR = tempfile.mkdtemp(prefix=u'maple-build')
 
 # Resources (GUI images, reference docs, etc.)
-TOOLBAR_BUTTONS = 'buttons.png'
-RESOURCE_DIR = os.path.abspath('../resources')
+TOOLBAR_BUTTONS = u'buttons.png'
+RESOURCE_DIR = os.path.abspath(u'../resources')
 REFERENCE_DIR = os.path.join(RESOURCE_DIR, 'reference')
 EXAMPLEBOOK_DIR = os.path.join(RESOURCE_DIR, 'examples')

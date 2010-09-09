@@ -19,7 +19,6 @@ from subprocess import PIPE, STDOUT
 
 import settings
 from settings import SKETCH_EXN as EXN
-from util import temp_dir
 
 #-----------------------------------------------------------------------------#
 
@@ -29,7 +28,7 @@ class MalformedSketchError(RuntimeError):
         RuntimeError.__init__(self, *args, **kwargs)
 
 # FIXME decide if we want to support real files in sketch folders
-SKETCH_EXTS = [EXN[1:], 'c', 'cpp', 'h']
+SKETCH_EXTS = [EXN[1:], u'c', u'cpp', u'h']
 
 #-----------------------------------------------------------------------------#
 
@@ -47,7 +46,7 @@ class Sketch(object):
         on disk yet
         """
         if not main_file.endswith(EXN):
-            raise ValueError('invalid main file extension: %s' % main_file)
+            raise ValueError(u'invalid main file extension: %s' % main_file)
         self.main_file = main_file
         self.main_basename = os.path.basename(main_file)
         self.dir = os.path.dirname(main_file)
@@ -62,7 +61,7 @@ class Sketch(object):
         return sketch_file[:-len(EXN)]
 
     def _ext(self, path):
-        rsplit = path.rsplit('.')
+        rsplit = path.rsplit(u'.')
         return rsplit[1] if len(rsplit) > 1 else None
 
     def redisplay_ui(self):
@@ -78,9 +77,9 @@ class Sketch(object):
             try:
                 os.makedirs(path)
             except:
-                err = ("Could not save to folder '%s', please choose " + \
-                           "another folder") % os.path.basename(path)
-                self.ui.show_error("Save failed", err)
+                err = (u"Could not save to folder '%s', please choose " + \
+                           u"another folder") % os.path.basename(path)
+                self.ui.show_error(u"Save failed", err)
                 return
 
         self.dir = d.rstrip(os.path.sep)
@@ -91,7 +90,7 @@ class Sketch(object):
         self.ui.clear_subprocess_window()
         make = settings.MAKE_PATH
         lmaple = settings.LIB_MAPLE_HOME
-        child = subprocess.Popen([make, 'SRCROOT=%s' % lmaple, 'install'],
+        child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple, u'install'],
                                  stdout=PIPE, stderr=STDOUT,
                                  cwd=self.build_dir)
         out_err = child.stdout
@@ -101,7 +100,7 @@ class Sketch(object):
             self.ui.append_subprocess_output(line)
             status = child.poll()
         # FIXME maybe need to pull out the rest of the lines?
-        self.ui.set_status(status, 'upload')
+        self.ui.set_status(status, u'upload')
 
     def prettify_uploader_line(self, line): # TODO
         return line
@@ -111,7 +110,7 @@ class Sketch(object):
 
     def stop_compiling(self, FIXME_ignore=False): # TODO
         if FIXME_ignore: return
-        self.ui.show_error("Not implemented yet", "Sorry!")
+        self.ui.show_error(u"Not implemented yet", u"Sorry!")
 
     def compile(self):
         """Assumes the sketch is synced with the hard disk."""
@@ -149,22 +148,22 @@ class Sketch(object):
             strip = self._strip_ext(basename)
             if basename == self.main_basename:
                 shutil.copy(abs(basename),
-                            os.path.join(self.build_dir, 'main.cpp'))
+                            os.path.join(self.build_dir, u'main.cpp'))
             else:
                 shutil.copy(abs(basename), self.build_dir)
 
     def run_make(self): # assumes self.build_dir is all set up
         make = settings.MAKE_PATH
         lmaple = settings.LIB_MAPLE_HOME
-        if 'Makefile' not in os.listdir(lmaple):
-            self.ui.show_error("Bad libmaple directory",
-                               "The libmaple directory on your system (%s)" % \
-                                   lmaple + ' is missing a Makefile.  ' + \
-                                   'Cannot verify sketch.')
+        if u'Makefile' not in os.listdir(lmaple):
+            self.ui.show_error(u"Bad libmaple directory",
+                               u"The libmaple directory on your system (%s)"% \
+                                   lmaple + u' is missing a Makefile.  ' + \
+                                   u'Cannot verify sketch.')
             return
-        shutil.copy(os.path.join(lmaple,'Makefile'), self.build_dir)
+        shutil.copy(os.path.join(lmaple,u'Makefile'), self.build_dir)
         # FIXME need to incorporate things like FLASH vs. RAM
-        child = subprocess.Popen([make, "SRCROOT=%s" % lmaple],
+        child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple],
                                  stdout=PIPE, stderr=STDOUT,
                                  cwd=self.build_dir)
         out_err = child.stdout
@@ -178,7 +177,7 @@ class Sketch(object):
         # FIXME maybe need to pull out the rest of the lines (run a
         # final out_err.readlines() here) -- some seem to be missing
         # from the subprocess window; not sure
-        self.ui.set_status(status, 'compilation')
+        self.ui.set_status(status, u'compilation')
 
     def prettify_compiler_line(self, line): # TODO
         return line
@@ -189,9 +188,9 @@ class Sketch(object):
                 os.makedirs(self.dir)
                 self.no_dir = False
             except:
-                err = 'Could not create directory:\n\t%s\n' % self.dir
-                err += 'Please save your sketch in another location.'
-                self.ui.show_error('Save Failed', err)
+                err = u'Could not create directory:\n\t%s\n' % self.dir
+                err += u'Please save your sketch in another location.'
+                self.ui.show_error(u'Save Failed', err)
                 return False
 
         failed_saves = []
@@ -201,19 +200,19 @@ class Sketch(object):
                 with open(path, 'w') as f:
                     f.write(code.code)
             except Exception as e:
-                print "Couldn't save %s. Reason: %s" % (basename, str(e))
+                print u"Couldn't save %s. Reason: %s" % (basename, str(e))
                 failed_saves.append(basename)
 
         if failed_saves:
             if message_on_error:
                 if len(failed_saves) == 1:
-                    err = 'Could not save file ' + failed_saves[0] + '. ' + \
-                        'Please save your sketch in another location.'
+                    err = u'Could not save file ' + failed_saves[0] + '. ' + \
+                        u'Please save your sketch in another location.'
                 else:
-                    err = "The following files could not be saved: " + \
-                        ', '.join(failed_saves) + \
-                        '.  Please save your sketch in another location.'
-                self.ui.show_error("Save Failed", err)
+                    err = u"The following files could not be saved: " + \
+                        u', '.join(failed_saves) + \
+                        u'.  Please save your sketch in another location.'
+                self.ui.show_error(u"Save Failed", err)
             return False
         return True
 
@@ -227,13 +226,13 @@ class Sketch(object):
         self.num_files = 0
 
         if unsaved:
-            return {self.main_basename : Code('')}
+            return {self.main_basename : Code(u'')}
 
         sources = {}
         main_found = False
         for f in os.listdir(self.dir):
             abs_f = self.abs_path(f)
-            if f.startswith('.') or self._ext(f) not in SKETCH_EXTS or \
+            if f.startswith(u'.') or self._ext(f) not in SKETCH_EXTS or \
                     not os.path.isfile(abs_f):
                 continue
 
@@ -244,7 +243,7 @@ class Sketch(object):
 
         if not main_found:
             # TODO better error reporting
-            raise MalformedSketchError('missing main file %s from dir %d' % \
+            raise MalformedSketchError(u'missing main file %s from dir %d' % \
                                            (self.main_file, self.dir))
 
         return sources
@@ -255,13 +254,13 @@ class Sketch(object):
     def replace_source(self, basename, new_code):
         if basename not in self.sources:
             # TODO better error reporting
-            raise ValueError('%s not a source' % basename)
+            raise ValueError(u'%s not a source' % basename)
         self.sources[basename].code = new_code
 
     def insert_source(self, basename, new_code):
         if basename in self.sources:
             # TODO better error reporting
-            raise ValueError('%s already a source' % basename)
+            raise ValueError(u'%s already a source' % basename)
         self.sources[basename].code = new_code
 
     def __get_num_sources(self):
@@ -270,24 +269,25 @@ class Sketch(object):
 
     def ensure_existence(self):
         if os.path.exists(self.dir): return True
-        self.ui.show_ok_warning(["Sketch disappeared",
-                                 "Your sketch folder has disappeared.\n" + \
-                                     "Maple IDE will attempt to restore " + \
-                                     "your source code, but other data " + \
-                                     "will be lost."])
+        self.ui.show_ok_warning([u"Sketch disappeared",
+                                 u"Your sketch folder has disappeared.\n" + \
+                                     u"Maple IDE will attempt to restore " + \
+                                     u"your source code, but other data " + \
+                                     u"will be lost."])
         self.no_dir = True
         if not self.save():
-            self.ui.show_ok_warning(["Sketch restoration failed",
-                                     "Could not restore all of your " + \
-                                         "source code.  Some changes " + \
-                                         "may be lost.  You should attempt " +\
-                                         "to save your work elsewhere."])
+            self.ui.show_ok_warning([u"Sketch restoration failed",
+                                     u"Could not restore all of your " + \
+                                         u"source code.  Some changes " + \
+                                         u"may be lost.  You should attempt "+\
+                                         u"to save your work elsewhere."])
 
     def __str__(self):
-        codes_str = ['// ----------- FILE: %s ----------\n%s' % \
+        codes_str = [u'// ----------- FILE: %s ----------\n%s' % \
                          (basename, str(code)) \
                      for basename, code in self.sources.iteritems()]
-        return 'Sketch: %s\n\n%s' % (self.main_basename, '\n'.join(codes_str))
+        return u'Sketch: %s\n\n%s' % (self.main_basename,
+                                      u'\n'.join(codes_str))
 
 #-----------------------------------------------------------------------------#
 
@@ -302,4 +302,4 @@ class Code(object):
         return self.code
 
     def __repr__(self):
-        return 'Code("%s")' % self.code
+        return u'Code("%s")' % self.code

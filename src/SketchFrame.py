@@ -80,10 +80,10 @@ class SketchFrame(wx.Frame, UserInterface):
     """
 
     def __init__(self, main_file=None, parent=None, id=wx.ID_ANY,
-                 title="Maple IDE", pos=(50,50), size=(640,700),
-                 style=wx.DEFAULT_FRAME_STYLE, name="Maple IDE"):
+                 title=u"Maple IDE", pos=(50,50), size=(640,700),
+                 style=wx.DEFAULT_FRAME_STYLE, name=u"Maple IDE"):
         basename = os.path.basename(main_file) if main_file else None
-        title = 'Maple IDE | ' + basename if basename else 'Maple IDE'
+        title = u'Maple IDE | ' + basename if basename else u'Maple IDE'
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
 
         self._pages = {}        # {basename: CPPStyledTextCtrl}
@@ -114,7 +114,7 @@ class SketchFrame(wx.Frame, UserInterface):
         # pprint(dir(self.nb))
 
         # subprocess (compiler/uploader) output goes here
-        self.sub = wx.TextCtrl(self, -1, '', wx.DefaultPosition,
+        self.sub = wx.TextCtrl(self, -1, u'', wx.DefaultPosition,
                                wx.Size(200, 150),
                                wx.NO_BORDER | wx.TE_MULTILINE)
         comp_info = wx.aui.AuiPaneInfo()
@@ -141,6 +141,9 @@ class SketchFrame(wx.Frame, UserInterface):
         # 'undo' the changes _we_ made by sticking the file contents into
         # our notebook's pages.
         self.not_really_modified()
+
+        self.nb.active_page = self._pages[self.sketch.main_basename]
+
 
     #--------------------------- Menu bar creation ---------------------------#
 
@@ -177,17 +180,17 @@ class SketchFrame(wx.Frame, UserInterface):
                 cat_bind(e, open_example(c, e))
             examples_menu.AppendMenu(-1, c, cat_menu)
         # file menu/bindings
-        bind("&New\tCtrl-N", self.OnNewSketch)
-        bind("&Open...\tCtrl-O", self.OnOpenSketch)
-        file_menu.AppendMenu(-1, "Sketchbook", sketchbook_menu)
-        file_menu.AppendMenu(-1, "Examples", examples_menu)
-        bind("Close\tCTRL-W", self.OnClose)
-        bind("&Save\tCTRL-S", self.OnSave)
-        bind("S&ave As...\tSHIFT-CTRL-S", self.OnSaveAs)
-        bind("&Upload to I/O Board\tCTRL-U", self.OnUpload)
+        bind(u"&New\tCtrl-N", self.OnNewSketch)
+        bind(u"&Open...\tCtrl-O", self.OnOpenSketch)
+        file_menu.AppendMenu(-1, u"Sketchbook", sketchbook_menu)
+        file_menu.AppendMenu(-1, u"Examples", examples_menu)
+        bind(u"Close\tCTRL-W", self.OnClose)
+        bind(u"&Save\tCTRL-S", self.OnSave)
+        bind(u"S&ave As...\tSHIFT-CTRL-S", self.OnSaveAs)
+        bind(u"&Upload to I/O Board\tCTRL-U", self.OnUpload)
         file_menu.AppendSeparator()
-        bind("&Page Setup\tSHIFT-CTRL-P", self.OnPageSetup)
-        bind("Print\tCTRL-P", self.OnPrint)
+        bind(u"&Page Setup\tSHIFT-CTRL-P", self.OnPageSetup)
+        bind(u"Print\tCTRL-P", self.OnPrint)
 
         menu_bar.Append(file_menu, "&File")
 
@@ -195,67 +198,67 @@ class SketchFrame(wx.Frame, UserInterface):
         edit_menu = wx.Menu()
         bind = make_bind(edit_menu)
 
-        bind("&Undo\tCTRL-Z", self.OnUndo)
-        bind("&Redo\tCTRL-Y", self.OnRedo)
+        bind(u"&Undo\tCTRL-Z", self.OnUndo)
+        bind(u"&Redo\tCTRL-Y", self.OnRedo)
         edit_menu.AppendSeparator()
-        bind("&Cut\tCtrl-X", self.OnCut)
-        bind("C&opy\tCTRL-C", self.OnCopy)
-        bind("Copy for &Forum\tSHIFT-CTRL-C", self.OnCopyForForum)
-        bind("Copy as &HTML\tALT-CTRL-C", self.OnCopyAsHTML)
-        bind("P&aste\tCTRL-V", self.OnPaste)
-        bind("Select &All\tCTRL-A", self.OnSelectAll)
+        bind(u"&Cut\tCtrl-X", self.OnCut)
+        bind(u"C&opy\tCTRL-C", self.OnCopy)
+        bind(u"Copy for &Forum\tSHIFT-CTRL-C", self.OnCopyForForum)
+        bind(u"Copy as &HTML\tALT-CTRL-C", self.OnCopyAsHTML)
+        bind(u"P&aste\tCTRL-V", self.OnPaste)
+        bind(u"Select &All\tCTRL-A", self.OnSelectAll)
         edit_menu.AppendSeparator()
-        bind("Co&mment/Uncomment\tCTRL-/", self.OnCommentUncomment)
-        bind("&Increase Indent\tCTRL-]", self.OnIncreaseIndent)
-        bind("&Decrease Indent\tCTRL-[", self.OnDecreaseIndent)
+        bind(u"Co&mment/Uncomment\tCTRL-/", self.OnCommentUncomment)
+        bind(u"&Increase Indent\tCTRL-]", self.OnIncreaseIndent)
+        bind(u"&Decrease Indent\tCTRL-[", self.OnDecreaseIndent)
         edit_menu.AppendSeparator()
-        bind("&Find\tCTRL-F", self.OnFind)
-        bind("Find &Next\tCTRL-G", self.OnFindNext)
+        bind(u"&Find\tCTRL-F", self.OnFind)
+        bind(u"Find &Next\tCTRL-G", self.OnFindNext)
 
-        menu_bar.Append(edit_menu, "&Edit")
+        menu_bar.Append(edit_menu, u"&Edit")
 
         ## Sketch menu
         sketch_menu = wx.Menu()
         bind = make_bind(sketch_menu)
 
-        bind("&Verify / Compile\tCTRL-R", self.OnVerify)
-        bind("&Stop", self.OnStop)
+        bind(u"&Verify / Compile\tCTRL-R", self.OnVerify)
+        bind(u"&Stop", self.OnStop)
         sketch_menu.AppendSeparator()
-        bind("S&how Sketch Folder\tCTRL-K", self.OnShowSketchFolder)
-        bind("IMPORT LIBRARY SUBMENU", self.OnImportLibrary)
-        bind("&Add File...", self.OnAddFile)
+        bind(u"S&how Sketch Folder\tCTRL-K", self.OnShowSketchFolder)
+        bind(u"IMPORT LIBRARY SUBMENU", self.OnImportLibrary)
+        bind(u"&Add File...", self.OnAddFile)
 
-        menu_bar.Append(sketch_menu, "&Sketch")
+        menu_bar.Append(sketch_menu, u"&Sketch")
 
         ## Tools menu
         tools_menu = wx.Menu()
         bind = make_bind(tools_menu)
 
-        bind("&Auto Format\tCTRL-T", self.OnAutoFormat)
-        bind("A&rchive Sketch", self.OnArchiveSketch)
-        bind("&Fix Encoding and Reload", self.OnFixEncodingAndReload)
+        bind(u"&Auto Format\tCTRL-T", self.OnAutoFormat)
+        bind(u"A&rchive Sketch", self.OnArchiveSketch)
+        bind(u"&Fix Encoding and Reload", self.OnFixEncodingAndReload)
         tools_menu.AppendSeparator()
-        bind("&Serial Monitor\tSHIFT-CTRL-M", self.OnSerialMonitor)
+        bind(u"&Serial Monitor\tSHIFT-CTRL-M", self.OnSerialMonitor)
         tools_menu.AppendSeparator()
-        bind("BOARDS SUBMENU", self.OnBoardsSubmenu) # TODO
-        bind("SERIAL PORT SUBMENU", self.OnSerialPortSubmenu) # TODO
+        bind(u"BOARDS SUBMENU", self.OnBoardsSubmenu) # TODO
+        bind(u"SERIAL PORT SUBMENU", self.OnSerialPortSubmenu) # TODO
         tools_menu.AppendSeparator()
-        bind("BURN_BOOTLOADER", self.OnBurnBootloader) # TODO
+        bind(u"BURN_BOOTLOADER", self.OnBurnBootloader) # TODO
 
-        menu_bar.Append(tools_menu, "&Tools")
+        menu_bar.Append(tools_menu, u"&Tools")
 
         ## Help menu
         help_menu = wx.Menu()
         bind = make_bind(help_menu)
 
-        bind("Getting Started", self.OnGettingStarted)
-        bind("Development Environment", self.OnDevelopmentEnvironment)
-        bind("Troubleshooting", self.OnTroubleshooting)
-        bind("Language Reference", self.OnLanguageReference)
-        bind("Visit Arduino.cc", self.OnVisitArduino)
-        bind("Visit LeafLabs.com", self.OnVisitLeafLabs)
+        bind(u"Getting Started", self.OnGettingStarted)
+        bind(u"Development Environment", self.OnDevelopmentEnvironment)
+        bind(u"Troubleshooting", self.OnTroubleshooting)
+        bind(u"Language Reference", self.OnLanguageReference)
+        bind(u"Visit Arduino.cc", self.OnVisitArduino)
+        bind(u"Visit LeafLabs.com", self.OnVisitLeafLabs)
 
-        menu_bar.Append(help_menu, "&Help")
+        menu_bar.Append(help_menu, u"&Help")
 
         return menu_bar
 
@@ -301,7 +304,7 @@ class SketchFrame(wx.Frame, UserInterface):
         self.OpenSketchNewFrame(path)
 
     def OnClose(self, evt):
-        if self._query_user_save('closing') == ABORT:
+        if self._query_user_save(u'closing') == ABORT:
             return
         self.sketch.cleanup()
         self.__mgr.UnInit()
@@ -312,18 +315,18 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def OnSaveAs(self, evt):
         default_file = self.sketch.name or ""
-        path = wx.FileSelector("Save Maple sketch as...",
+        path = wx.FileSelector(u"Save Maple sketch as...",
                                default_path=settings.SKETCHBOOK_PATH,
                                default_filename=default_file,
                                flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT,
                                parent=self)
-        if path == "": return   # user hit cancel
+        if path == u"": return   # user hit cancel
 
         self.sketch.reset_directory(path, create=True)
         self.save()
 
     def OnUpload(self, evt):
-        if self._query_user_save('uploading') == ABORT:
+        if self._query_user_save(u'uploading') == ABORT:
             return
         self.sketch.upload()
 
@@ -432,22 +435,23 @@ class SketchFrame(wx.Frame, UserInterface):
         webbrowser.open_new_tab(url)
 
     def OnGettingStarted(self, evt):
-        self._open_url('file://' + resources.reference('quickstart.html'))
+        self._open_url(u'file://' + resources.reference(u'quickstart.html'))
 
     def OnDevelopmentEnvironment(self, evt):
-        self._open_url('file://' + resources.reference('index.html'))
+        self._open_url(u'file://' + resources.reference(u'index.html'))
 
     def OnTroubleshooting(self, evt):
-        self._open_url('file://' + resources.reference('troubleshooting.html'))
+        self._open_url(u'file://' + \
+                           resources.reference(u'troubleshooting.html'))
 
     def OnLanguageReference(self, evt):
-        self._open_url('file://' + resources.reference('language.html'))
+        self._open_url(u'file://' + resources.reference(u'language.html'))
 
     def OnVisitArduino(self, evt):
-        self._open_url('http://arduino.cc')
+        self._open_url(u'http://arduino.cc')
 
     def OnVisitLeafLabs(self, evt):
-        self._open_url('http://leaflabs.com')
+        self._open_url(u'http://leaflabs.com')
 
     #------------------------ Toolbar event handlers -------------------------#
 
@@ -465,8 +469,9 @@ class SketchFrame(wx.Frame, UserInterface):
         path = self._query_user_sketch()
         if path is None: return
         self.sketch = Sketch(self, path)
-        self.SetTitle('MapleIDE | ' + self.sketch.name)
+        self.SetTitle(u'MapleIDE | ' + self.sketch.name)
         self.not_really_modified()
+        self.nb.active_page = self._pages[self.sketch.main_basename]
 
     #------------------------ UserInterface methods --------------------------#
 
@@ -504,7 +509,7 @@ class SketchFrame(wx.Frame, UserInterface):
             page_idx = self.nb.GetPageIndex(page)
             if page_idx == wx.NOT_FOUND:
                 # TODO better error logging
-                print 'WARNING: unknown basename', basename
+                print u'WARNING: unknown basename', basename
                 page = self.make_new_tab(basename)
             page_count -= 1
 
@@ -512,11 +517,11 @@ class SketchFrame(wx.Frame, UserInterface):
 
         if page_count != 0:
             # TODO better error logging
-            print 'WARNING: page_count=%d, should be 0' % page_count
+            print u'WARNING: page_count=%d, should be 0' % page_count
 
     def clear_subprocess_window(self):
-        self.SetStatusText('')
-        self.SetCaptionText('')
+        self.SetStatusText(u'')
+        self.SetCaptionText(u'')
         self.sub.Clear()
 
     def append_subprocess_output(self, line):
@@ -525,11 +530,11 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def set_status(self, status, status_type):
         cap, low = status_type.capitalize(), status_type.lower()
-        self.SetStatusText("%s exit status: %d" % (cap, status))
+        self.SetStatusText(u"%s exit status: %d" % (cap, status))
         if status == STATUS_SUCCESS:
-            self.SetCaptionText('Finished with %s.' % low)
+            self.SetCaptionText(u'Finished with %s.' % low)
         else:
-            self.SetCaptionText('%s was unsuccessful.' % cap)
+            self.SetCaptionText(u'%s was unsuccessful.' % cap)
 
     #------------------------- Other event handlers --------------------------#
 
@@ -567,8 +572,8 @@ class SketchFrame(wx.Frame, UserInterface):
         if os.path.isdir(sketch_file):
             sketch_file = SB.sketch_main_file(sketch_file)
             if sketch_file is None:
-                error_popup("Empty Sketch Directory",
-                            "Directory:\n\t%s\ncontains no %s files." % EXN)
+                error_popup(u"Empty Sketch Directory",
+                            u"Directory:\n\t%s\ncontains no %s files." % EXN)
                 return
 
         x,y = self.GetScreenPositionTuple()
@@ -580,7 +585,7 @@ class SketchFrame(wx.Frame, UserInterface):
     def _sync_sketch(self):
         mine, sketch = set(self._pages.keys()), set(self.sketch.sources.keys())
         if mine != sketch:      # can't happen
-            raise MalformedSketchError(str(mine) + ' vs. ' + str(sketch))
+            raise MalformedSketchError(str(mine) + u' vs. ' + str(sketch))
         for basename, page in self._pages.iteritems():
             self.sketch.replace_source(basename, page.GetText())
 
@@ -601,8 +606,8 @@ class SketchFrame(wx.Frame, UserInterface):
 
         if not self.modified:
             return CONTINUE
-        result = save_prompt_popup("There are unsaved changes",
-                                   "Save changes before %s?" % operation)
+        result = save_prompt_popup(u"There are unsaved changes",
+                                   u"Save changes before %s?" % operation)
         if result == wx.ID_CANCEL:
             return ABORT
         elif result == wx.ID_YES:
@@ -614,9 +619,9 @@ class SketchFrame(wx.Frame, UserInterface):
             raise ValueError(result)
 
     def _query_user_sketch(self):
-        dialog = wx.FileDialog(None, "Open a Maple sketch...",
+        dialog = wx.FileDialog(None, u"Open a Maple sketch...",
                                defaultDir=settings.SKETCHBOOK_PATH,
-                               wildcard="*" + EXN,
+                               wildcard=u"*" + EXN,
                                style=wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
         if dialog.ShowModal() != wx.ID_OK: return None
         path = dialog.GetPath()
@@ -626,6 +631,5 @@ class SketchFrame(wx.Frame, UserInterface):
     def not_really_modified(self):
         self.modified = False
         for page in self.nb.pages: page.EmptyUndoBuffer()
-        self.nb.active_page = self._pages[self.sketch.main_basename]
 
 #-----------------------------------------------------------------------------#

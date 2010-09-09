@@ -4,7 +4,7 @@
 import wx
 
 def not_implemented_popup():
-    popup = wx.MessageDialog(None, "Sorry!", "Not implemented yet", wx.OK)
+    popup = wx.MessageDialog(None, u"Sorry!", u"Not implemented yet", wx.OK)
     popup.ShowModal()
     popup.Destroy()
 

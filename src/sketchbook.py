@@ -57,9 +57,9 @@ def sketch_source_files(d):
 def fresh_sketch(ui):
     """nobody else should be touching the sketchbook directory!"""
     global _unsaved_sketches
-    base = datetime.datetime.now().strftime('sketch_%b%d').lower()
+    base = unicode(datetime.datetime.now().strftime('sketch_%b%d').lower())
     existing_sketches = sketch_dirs() + list(_unsaved_sketches)
-    name = ''
+    name = u''
     for c in string.ascii_lowercase:
         name = base + c
         if name not in existing_sketches: break
@@ -67,7 +67,7 @@ def fresh_sketch(ui):
         # we ran out of letters, just use numbers
         i = 1
         while True:
-            name = base + str(i)
+            name = base + u'-' + str(i)
             if name not in existing_sketches: break
             i += 1
 
@@ -92,7 +92,7 @@ def sketch_main_file(sketch_dir):
     # HACK this is a pretty lame attempt
     for f in fs:
         with open(os.path.join(sketch_dir,f),'r') as f_in:
-            if 'setup' in f_in.read(): return join(sketch_dir, f)
+            if u'setup' in f_in.read(): return join(sketch_dir, f)
 
     # oh well, give _something_ back
     return join(sketch_dir, fs[0])

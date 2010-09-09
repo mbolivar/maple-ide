@@ -34,11 +34,11 @@ class MapleIDEApp(wx.App):
 #-----------------------------------------------------------------------------#
 
 def main():
-    app = MapleIDEApp('Maple IDE')
+    app = MapleIDEApp(u'Maple IDE')
     try:
         app.MainLoop()
     finally:
-        print 'trashing build directory %s' % settings.BUILD_DIR
+        print u'trashing build directory %s' % settings.BUILD_DIR
         shutil.rmtree(settings.BUILD_DIR)
 
 if __name__ == '__main__':

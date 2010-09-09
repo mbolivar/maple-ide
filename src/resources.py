@@ -34,8 +34,7 @@ def get_bitmap(file_name):
     return bitmap
 
 def desprite_bitmap(file_name, n_pieces):
-    """Assumes horizontal spriting
-    """
+    """Assumes horizontal spriting."""
     bmap = get_bitmap(file_name)
     width = bmap.GetWidth()
     assert width % n_pieces == 0
