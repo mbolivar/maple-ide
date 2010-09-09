@@ -48,3 +48,11 @@ CPPStyledTextCtrl
 
 - add brace/paren matching
 - need to place the cursor inside of the active page during frame startup
+
+PREFERENCES
+-----------
+
+- configurable tab-width
+- LIB_MAPLE_HOME env var override
+- unicode substitution in preproc
+- imports
