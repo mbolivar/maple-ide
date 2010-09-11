@@ -1,4 +1,4 @@
-* preprocessing steps
+* preprocessing steps (in the java version)
 
 1. cat all the .pde files together.  mark each file with its line
    offset in the big file.

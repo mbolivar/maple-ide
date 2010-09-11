@@ -15,8 +15,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+from os.path import join
 from subprocess import PIPE, STDOUT
 
+import preprocess as PP
 import settings
 from settings import SKETCH_EXN as EXN
 
@@ -68,7 +70,7 @@ class Sketch(object):
         self.ui.redisplay()
 
     def abs_path(self, basename):
-        return os.path.join(self.dir, basename)
+        return join(self.dir, basename)
 
     def reset_directory(self, d, create=False):
         path = path.rstrip(os.path.sep) # NB '/' ==> '' haha oops
@@ -140,17 +142,48 @@ class Sketch(object):
         finally:
             self.compiling = False
 
-    def preprocess(self): # FIXME
-        # for now, assume the sketch files are valid C++ files that
-        # #include each other as appropriate
-        abs = lambda b: os.path.join(self.dir, b)
-        for basename in self.sources:
-            strip = self._strip_ext(basename)
-            if basename == self.main_basename:
-                shutil.copy(abs(basename),
-                            os.path.join(self.build_dir, u'main.cpp'))
-            else:
-                shutil.copy(abs(basename), self.build_dir)
+    def preprocess(self):
+        # split sketch files into c/c++ and pde files
+        sketch_sources = {}
+        cxx_sources = []
+        for basename, code in self.sources.iteritems():
+            if basename.endswith(EXN): sketch_sources[basename] = code
+            else: cxx_sources.append(basename)
+
+        # concatenate all of the pde sources, and compute their
+        # initial offsets
+        offset = 0
+        sketch_lines = []
+        for basename, code in sketch_sources.iteritems():
+            src_lines = code.code.splitlines()
+            nlines = len(src_lines)
+            sketch_lines.extend(src_lines)
+            code.offset = nlines
+            offset += nlines
+
+        # do the work
+        preprocessed = PP.preprocess(sketch_lines)
+        header = preprocessed[u'header']
+        main = preprocessed[u'main']
+        imports = preprocessed[u'imports']
+
+        # update our offsets based on the number of header lines
+        header_offset = len(header)
+        for code in sketch_sources.itervalues():
+            code.offset += header_offset
+
+        # dump everything into the build directory
+        # FIXME this breaks if they have a file named main.cpp already
+        with open(join(self.build_dir, u'main.cpp'),'w') as main_cpp:
+            main_cpp.write(u'\n'.join(header))
+            main_cpp.write(u'\n'.join(sketch_lines))
+            main_cpp.write(u'\n'.join(main))
+        for import_ in imports:
+            shutil.copy(join(settings.SKETCHBOOK_LIB_PATH, import_),
+                        self.build_dir)
+        for basename in cxx_sources:
+            shutil.copy(join(self.dir, basename), self.build_dir)
+
 
     def run_make(self): # assumes self.build_dir is all set up
         make = settings.MAKE_PATH
@@ -161,7 +194,7 @@ class Sketch(object):
                                    lmaple + u' is missing a Makefile.  ' + \
                                    u'Cannot verify sketch.')
             return
-        shutil.copy(os.path.join(lmaple,u'Makefile'), self.build_dir)
+        shutil.copy(join(lmaple,u'Makefile'), self.build_dir)
         # FIXME need to incorporate things like FLASH vs. RAM
         child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple],
                                  stdout=PIPE, stderr=STDOUT,
@@ -195,7 +228,7 @@ class Sketch(object):
 
         failed_saves = []
         for basename, code in self.sources.iteritems():
-            path = os.path.join(self.dir, basename)
+            path = join(self.dir, basename)
             try:
                 with open(path, 'w') as f:
                     f.write(code.code)
