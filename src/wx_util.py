@@ -14,6 +14,11 @@ def warning_popup(message, details):
     popup.ShowModal()
     popup.Destroy()
 
+def notice_popup(message, details):
+    popup = wx.MessageDialog(None, details, message, style=wx.OK)
+    popup.ShowModal()
+    popup.Destroy()
+
 def error_popup(message, details):
     popup = wx.MessageDialog(None, details, message, wx.ICON_ERROR)
     popup.ShowModal()

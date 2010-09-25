@@ -8,7 +8,7 @@ of the disk.
 Sketches know how to compile themselves.  This mixes model/controller
 a little bit, but in a way that I'm ok with."""
 
-from __future__ import with_statement
+from __future__ import print_function
 
 import os.path
 import re
@@ -16,13 +16,16 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from os.path import join
+from os.path import join, abspath
 from subprocess import PIPE, STDOUT
 
 import preprocess as PP
 import settings
-from gcc_parser import parse_gcc_line, parse_gcc_include_line
+from gcc_parser import parse_line, parse_include_line
 from settings import SKETCH_EXN as EXN
+from settings.preferences import preference
+
+DEBUG = True
 
 #-----------------------------------------------------------------------------#
 
@@ -57,12 +60,17 @@ class Sketch(object):
         self.name = os.path.basename(self.dir)
         self.sources = self._reload_sources(unsaved) # {basename: Code}
         self.ui = user_interface
-        self.build_dir = tempfile.mkdtemp(dir=settings.BUILD_DIR)
+        self.build_dir = self._make_fresh_build_dir()
         self.compiling = False  # currently compiling?
         self.no_dir = unsaved
 
     def _strip_ext(self, sketch_file):
         return sketch_file[:-len(EXN)]
+
+    def _make_fresh_build_dir(self):
+        if hasattr(self, 'build_dir'):
+            shutil.rmtree(self.build_dir)
+        return tempfile.mkdtemp(prefix=self.name, dir=preference('build_dir'))
 
     def _ext(self, path):
         rsplit = path.rsplit(u'.')
@@ -92,8 +100,8 @@ class Sketch(object):
     def upload(self): # assumes build dir is all set up nice
         # FIXME gotta respect MCU, BOARD, etc.
         self.ui.clear_subprocess_window()
-        make = settings.MAKE_PATH
-        lmaple = settings.LIB_MAPLE_HOME
+        make = preference('make_path')
+        lmaple = preference('lib_maple_home')
         child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple, u'install'],
                                  stdout=PIPE, stderr=STDOUT,
                                  cwd=self.build_dir)
@@ -125,8 +133,7 @@ class Sketch(object):
         # make isn't always so smart about what needs replacing, so do
         # the equivalent of 'make clean' by nuking the build directory.
         # (don't actually run make clean, because that would be slower)
-        shutil.rmtree(self.build_dir)
-        self.build_dir = tempfile.mkdtemp(dir=settings.BUILD_DIR)
+        self.build_dir = self._make_fresh_build_dir()
 
         self.compiling=True
 
@@ -181,15 +188,14 @@ class Sketch(object):
             main_cpp.write(u'\n'.join(sketch_lines))
             main_cpp.write(u'\n'.join(main))
         for import_ in imports:
-            shutil.copy(join(settings.SKETCHBOOK_LIB_PATH, import_),
-                        self.build_dir)
+            shutil.copy(join(preference('user_libs'), import_), self.build_dir)
         for basename in cxx_sources:
             shutil.copy(join(self.dir, basename), self.build_dir)
 
 
     def run_make(self): # assumes self.build_dir is all set up
-        make = settings.MAKE_PATH
-        lmaple = settings.LIB_MAPLE_HOME
+        make = preference('make_path')
+        lmaple = preference('lib_maple_home')
         if u'Makefile' not in os.listdir(lmaple):
             self.ui.show_error(u"Bad libmaple directory",
                                u"The libmaple directory on your system (%s)"% \
@@ -197,7 +203,10 @@ class Sketch(object):
                                    u'Cannot verify sketch.')
             return
         shutil.copy(join(lmaple, u'Makefile'), self.build_dir)
+        shutil.copy(join(lmaple, u'build-targets.mk'), self.build_dir)
         # FIXME need to incorporate things like FLASH vs. RAM
+        if DEBUG:
+            print('compiling with: {0} SRCROOT={1}'.format(make,lmaple))
         child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple],
                                  stdout=PIPE, stderr=STDOUT,
                                  cwd=self.build_dir)
@@ -218,18 +227,43 @@ class Sketch(object):
         return line
 
     def archive(self, archive_path=u''):
-        #TODO: Unicode compliance?
-        if archive_path == u"":
-            archive_path= os.path.join(settings.SKETCHBOOK_PATH, self.dir) +".zip"
-        zip = zipfile.ZipFile(archive_path, 'w', compression=zipfile.ZIP_DEFLATED)
-        for root, dirs, files in os.walk(self.dir):
-            archive_root = os.path.abspath(root)[len(os.path.abspath(self.dir)):]
-            for f in files:
-                fullpath = os.path.join(root, f)
-                archive_name = os.path.join(archive_root, f)
-                print f
-                zip.write(fullpath, archive_name, zipfile.ZIP_DEFLATED)
-        zip.close()
+        """Creates an archive of the current sketch contents.
+
+        If archive_path=='', the default archive will be the sketch's
+        directory name with .zip appended.  The default save location
+        is the sketchbook.
+
+        If any archive already exists in archive_path, it will be
+        overwritten."""
+        if archive_path == u'':
+            archive_path = join(preference('sketchbook'), self.dir) + u'.zip'
+
+        success = True
+
+        try:
+            zip_file = zipfile.ZipFile(archive_path, 'w',
+                                       compression=zipfile.ZIP_DEFLATED)
+
+            for root, dirs, files in os.walk(self.dir):
+                archive_root = abspath(root)[len(abspath(self.dir)):]
+                print('archive_root: "{0}"'.format(archive_root))
+                for f in files:
+                    fullpath = join(root, f)
+                    archive_name = join(archive_root, f)
+                    zip_file.write(fullpath, archive_name)
+        except:
+            success = False
+        finally:
+            zip_file.close()
+
+        if success:
+            self.ui.show_notice(u'Success',
+                                u'Archive successfully created in:\n' + \
+                                    archive_path)
+        else:
+            self.ui.show_error(u'Failure',
+                               u"Couldn't create the archive.  " + \
+                                   u'Try choosing a different location.')
 
     def save(self, message_on_error=True):
         if self.no_dir:
@@ -249,7 +283,7 @@ class Sketch(object):
                 with open(path, 'w') as f:
                     f.write(code.code)
             except Exception as e:
-                print u"Couldn't save %s. Reason: %s" % (basename, str(e))
+                print(u"Couldn't save {0}. Reason: {1}".format(basename, str(e)))
                 failed_saves.append(basename)
 
         if failed_saves:

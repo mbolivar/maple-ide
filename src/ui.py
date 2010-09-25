@@ -15,6 +15,9 @@ class UserInterface(object):
     def show_error(self, message, details):
         raise NotImplementedError()
 
+    def show_notice(self, message, details):
+        raise NotImplementedError()
+
     def redisplay(self):
         """Restore the sketch's on-screen state.
         """

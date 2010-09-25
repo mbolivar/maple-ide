@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 
 """Executable entry point to the IDE.
-"""
+
+Important things depend upon the assumption that the value of
+sys.path[0] is the directory which contains this file.  Violate that
+assumption at your own risk."""
+
+from __future__ import print_function
 
 import os
 import shutil
@@ -10,6 +15,7 @@ import wx
 
 import settings
 import sketchbook
+from settings.preferences import preference
 from SketchFrame import SketchFrame
 
 assert_mode = wx.PYAPP_ASSERT_EXCEPTION
@@ -38,8 +44,10 @@ def main():
     try:
         app.MainLoop()
     finally:
-        print u'trashing build directory %s' % settings.BUILD_DIR
-        shutil.rmtree(settings.BUILD_DIR)
+        if preference('build_dir_delete_on_exit'):
+            build_dir = preference('build_dir')
+            print(u'trashing build directory {0}'.format(build_dir))
+            shutil.rmtree(build_dir)
 
 if __name__ == '__main__':
     main()

@@ -20,11 +20,12 @@ import resources
 import settings
 import examplebook as EB
 import sketchbook as SB
+from CPPStyledTextCtrl import CPPStyledTextCtrl
 from settings import SKETCH_EXN as EXN
+from settings.preferences import preference
+from Sketch import Sketch
 from ui import UserInterface
 from wx_util import *
-from CPPStyledTextCtrl import CPPStyledTextCtrl
-from Sketch import Sketch
 
 STATUS_SUCCESS = 0              # FIXME this needs a better place
 
@@ -90,17 +91,13 @@ class SketchFrame(wx.Frame, UserInterface):
         self._pages = {}        # {basename: CPPStyledTextCtrl}
         self.modified = False   # are there unsaved changes?
 
-        # this thing totally takes the pain out of panel layout
         self.__mgr = wx.aui.AuiManager(self)
 
-        # menu bar
         self.menu_bar = self._make_menu_bar()
         self.SetMenuBar(self.menu_bar)
 
-        # toolbar
         self._make_toolbar()
 
-        # status bar
         self.CreateStatusBar()
 
         # tabbed view of current sketch
@@ -111,8 +108,6 @@ class SketchFrame(wx.Frame, UserInterface):
         #                              style=wx.aui.AUI_NB_TOP | \
         #                                  wx.aui.AUI_NB_TAB_MOVE | \
         #                                  wx.aui.AUI_NB_CLOSE_ON_ALL_TABS)
-        # print 'dir(self.nb):'
-        # pprint(dir(self.nb))
 
         # subprocess (compiler/uploader) output goes here
         self.sub = wx.TextCtrl(self, -1, u'', wx.DefaultPosition,
@@ -129,11 +124,9 @@ class SketchFrame(wx.Frame, UserInterface):
         self.__mgr.AddPane(self.sub, info=comp_info)
         self.__mgr.Update()
 
-        # set frame close handler
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        # All set up, so initialize the sketch.  THIS MUST BE DONE AFTER
-        # THE GUI GETS SET UP.
+        # this *must* be done after GUI setup
         if main_file is None: self.sketch = SB.fresh_sketch(self)
         else: self.sketch = Sketch(self, main_file)
 
@@ -267,7 +260,7 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def _make_toolbar(self):
         self.toolbar = self.CreateToolBar()
-        button_pieces = resources.desprite_bitmap(settings.TOOLBAR_BUTTONS, 7)
+        button_pieces = resources.desprite_bitmap(resources.TOOLBAR_BUTTONS, 7)
         verify, stop, new_sk, open_sk, save_sk, upload, serial = button_pieces
         self._add_to_toolbar(verify, self.OnVerify)
         self._add_to_toolbar(stop, self.OnStop)
@@ -297,7 +290,8 @@ class SketchFrame(wx.Frame, UserInterface):
     #----------------------- File Menu event handlers ------------------------#
 
     def OnNewSketch(self, evt):
-        make_sketch_frame()
+        sf = SketchFrame(pos=self.child_position())
+        sf.Show(True)
 
     def OnOpenSketch(self, evt):
         path = self._query_user_sketch()
@@ -317,7 +311,7 @@ class SketchFrame(wx.Frame, UserInterface):
     def OnSaveAs(self, evt):
         default_file = self.sketch.name or ""
         path = wx.FileSelector(u"Save Maple sketch as...",
-                               default_path=settings.SKETCHBOOK_PATH,
+                               default_path=preference('sketchbook'),
                                default_filename=default_file,
                                flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT,
                                parent=self)
@@ -338,9 +332,6 @@ class SketchFrame(wx.Frame, UserInterface):
         not_implemented_popup()
 
     #----------------------- Edit Menu event handlers ------------------------#
-
-    # TODO? many of these are already keybindings in StyledTextCtrl;
-    # maybe take this out and see if everything still works
 
     def OnUndo(self, evt):
         self.nb.active_page.Undo()
@@ -412,14 +403,15 @@ class SketchFrame(wx.Frame, UserInterface):
         not_implemented_popup()
 
     def OnArchiveSketch(self, evt): # TODO
-        #FIXME possible abstraction violation since import statement was needed
         date = unicode(datetime.datetime.now().strftime('_%b%d').lower())
-        default_file = self.sketch.name + date + ".zip"
-        path = wx.FileSelector(u"Archive Sketch as:",
-                               default_path=settings.SKETCHBOOK_PATH,
+        default_file = self.sketch.name + date + u'.zip'
+
+        path = wx.FileSelector(u'Archive Sketch as:',
+                               default_path=preference('sketchbook'),
                                default_filename=default_file,
-                               flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT,
+                               flags=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
                                parent=self)
+
         if path == u"": return  #user hit cancel
 
         self.sketch.archive(path)
@@ -446,17 +438,17 @@ class SketchFrame(wx.Frame, UserInterface):
         webbrowser.open_new_tab(url)
 
     def OnGettingStarted(self, evt):
-        self._open_url(u'file://' + resources.reference(u'quickstart.html'))
+        self._open_url(u'file://' + resources.ref_doc(u'quickstart.html'))
 
     def OnDevelopmentEnvironment(self, evt):
-        self._open_url(u'file://' + resources.reference(u'index.html'))
+        self._open_url(u'file://' + resources.ref_doc(u'index.html'))
 
     def OnTroubleshooting(self, evt):
         self._open_url(u'file://' + \
-                           resources.reference(u'troubleshooting.html'))
+                           resources.ref_doc(u'troubleshooting.html'))
 
     def OnLanguageReference(self, evt):
-        self._open_url(u'file://' + resources.reference(u'language.html'))
+        self._open_url(u'file://' + resources.ref_doc(u'language.html'))
 
     def OnVisitArduino(self, evt):
         self._open_url(u'http://arduino.cc')
@@ -491,6 +483,9 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def show_error(self, message, details):
         error_popup(message, details)
+
+    def show_notice(self, message, details):
+        notice_popup(message, details)
 
     def redisplay(self, reset=False):
         """Redisplays.  If reset=True, wipes all the tabs and assumes that
@@ -587,10 +582,7 @@ class SketchFrame(wx.Frame, UserInterface):
                             u"Directory:\n\t%s\ncontains no %s files." % EXN)
                 return
 
-        x,y = self.GetScreenPositionTuple()
-        # TODO smarter decision making on frame placement -- maybe making
-        # it a child of this frame will DTRT?
-        new_frame = SketchFrame(sketch_file, pos=(x+20,y+20))
+        new_frame = SketchFrame(sketch_file, pos=self.child_position())
         new_frame.Show(True)
 
     def _sync_sketch(self):
@@ -631,7 +623,7 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def _query_user_sketch(self):
         dialog = wx.FileDialog(None, u"Open a Maple sketch...",
-                               defaultDir=settings.SKETCHBOOK_PATH,
+                               defaultDir=preference('sketchbook'),
                                wildcard=u"*" + EXN,
                                style=wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
         if dialog.ShowModal() != wx.ID_OK: return None
@@ -642,5 +634,15 @@ class SketchFrame(wx.Frame, UserInterface):
     def not_really_modified(self):
         self.modified = False
         for page in self.nb.pages: page.EmptyUndoBuffer()
+
+    def child_position(self):
+        # where should a new SketchFrame go so as not to fight with
+        # this one?
+
+        # TODO be smarter
+
+        x,y = self.GetScreenPositionTuple()
+        return x + 20, y + 20
+
 
 #-----------------------------------------------------------------------------#

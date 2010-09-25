@@ -11,6 +11,8 @@ from settings import RESOURCE_DIR
 
 colors = {'LEAF_GREEN': (63, 126, 51)}
 
+TOOLBAR_BUTTONS = u'buttons.png'
+
 _bitmap_cache = {}
 _image_cache = {}
 
@@ -47,5 +49,5 @@ def desprite_bitmap(file_name, n_pieces):
         pieces.append(bmap.GetSubBitmap(rect))
     return pieces
 
-def reference(name):
-    return os.path.join(settings.REFERENCE_DIR, name)
+def ref_doc(name):
+    return os.path.join(settings.REF_DOC_DIR, name)

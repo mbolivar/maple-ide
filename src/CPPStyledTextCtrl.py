@@ -3,6 +3,8 @@ from pprint import pprint
 import wx
 from wx.stc import *
 
+from settings.preferences import preference
+
 # tabs and spaces.  these values are set mostly according to my
 # personal religion [mbolivar], except that tab doesn't do
 # indentation, it just causes a tab to be inserted; IDE users might
@@ -83,10 +85,10 @@ class CPPStyledTextCtrl(StyledTextCtrl):
     #------------------------------ Keybindings ------------------------------#
 
     def _set_keybindings(self):
-        # FIXME XXX make this a preference you have to turn on!
-        self._set_basic_emacs_keybindings()
+        if preference('editor_emacs_keybindings'):
+            self._enable_emacs_keybindings()
 
-    def _set_basic_emacs_keybindings(self):
+    def _enable_emacs_keybindings(self):
         self.CmdKeyAssign(ord('P'), STC_SCMOD_CTRL, STC_CMD_LINEUP)
         self.CmdKeyAssign(ord('N'), STC_SCMOD_CTRL, STC_CMD_LINEDOWN)
 

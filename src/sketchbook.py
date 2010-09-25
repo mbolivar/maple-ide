@@ -11,15 +11,15 @@ from os.path import isdir, join
 
 import settings
 from settings import SKETCH_EXN as EXN
+from settings.preferences import preference
 from Sketch import Sketch
 
 _unsaved_sketches = set()
 
-SKETCHES = settings.SKETCHBOOK_PATH
-LIBS = settings.SKETCHBOOK_LIB_PATH
+SKETCHES = preference('sketchbook')
+LIBS = preference('user_libs')
 
 def _abs(d): return join(SKETCHES, d)
-
 
 def mark_saved(sketch):
     if sketch not in _unsaved_sketches:
@@ -40,7 +40,7 @@ def sketch_dirs_abs():
 def sketch_dir_get_abs(sketch_dir):
     return _abs(sketch_dir)
 
-def most_recent_sketch_dir():   # TODO read from preferences instead?
+def most_recent_sketch_dir():   # preferences go stale
     skd = sketch_dirs_abs()
     skd.sort(key=os.path.getmtime, reverse=True)
     return skd[0] if len(skd) > 0 else None
