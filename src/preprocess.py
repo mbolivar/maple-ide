@@ -18,6 +18,8 @@ def preprocess(sketch_lines):
             u'main': _main()}
 
 def _preprocess(sketch_lines):  # TODO does the work
+    # test:
+    # - doing declarations yourself still works
     return [u''], []
 
 def _main():                    # TODO

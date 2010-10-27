@@ -20,6 +20,7 @@ from subprocess import PIPE, STDOUT
 
 import preprocess as PP
 import settings
+from gcc_parser import parse_gcc_line, parse_gcc_include_line
 from settings import SKETCH_EXN as EXN
 
 #-----------------------------------------------------------------------------#
@@ -174,7 +175,7 @@ class Sketch(object):
 
         # dump everything into the build directory
         # FIXME this breaks if they have a file named main.cpp already
-        with open(join(self.build_dir, u'main.cpp'),'w') as main_cpp:
+        with open(join(self.build_dir, u'main.cpp'), 'w') as main_cpp:
             main_cpp.write(u'\n'.join(header))
             main_cpp.write(u'\n'.join(sketch_lines))
             main_cpp.write(u'\n'.join(main))
@@ -194,7 +195,7 @@ class Sketch(object):
                                    lmaple + u' is missing a Makefile.  ' + \
                                    u'Cannot verify sketch.')
             return
-        shutil.copy(join(lmaple,u'Makefile'), self.build_dir)
+        shutil.copy(join(lmaple, u'Makefile'), self.build_dir)
         # FIXME need to incorporate things like FLASH vs. RAM
         child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple],
                                  stdout=PIPE, stderr=STDOUT,
