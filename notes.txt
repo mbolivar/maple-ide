@@ -1,23 +1,33 @@
-* preprocessing steps (in the java version)
+- too many die()s around; figure out a better way to get errors to
+  user so they can make a decision.  probably merge wx_util and util
+  interfaces.
 
-1. cat all the .pde files together.  mark each file with its line
-   offset in the big file.
+- need to build a migration utility which imports preferences from old
+  IDE and from Arduino
 
-2. headerOffset = PdePreprocessor#writePrefix
-    2.1. optionally subsitute unicode
-    2.2. get default imports
-    2.3. figure out program imports
-    2.4. figure out prototypes (PdePreprocessor#prototypes)
-    2.5. return number of lines of: headers, prototypes needed
+- consider unifying Sketch and sketchbook; the current thing is
+  starting to feel stupid
 
-3. main file name = PdePreprocessor#write. writes to file:
-   3.1. headers and prototypes from 2
-   3.2. catted program
-   3.3. contents of appropriate main.cxx based on build.core value
+- preprocessing steps (in the java version)
 
-4. add to "class path" and "library path" (!@#$) the paths to
-   the locations of any imported libraries.
+    1. cat all the .pde files together.  mark each file with its line
+       offset in the big file.
 
-5. copy any .c, .cpp, .h files into the build directory directly.  for
-   every .pde file, add the header offset to its previously computed
-   preproc offset (since we dumped headers first)
+    2. headerOffset = PdePreprocessor#writePrefix
+        2.1. optionally subsitute unicode
+        2.2. get default imports
+        2.3. figure out program imports
+        2.4. figure out prototypes (PdePreprocessor#prototypes)
+        2.5. return number of lines of: headers, prototypes needed
+
+    3. main file name = PdePreprocessor#write. writes to file:
+       3.1. headers and prototypes from 2
+       3.2. catted program
+       3.3. contents of appropriate main.cxx based on build.core value
+
+    4. add to "class path" and "library path" (!@#$) the paths to
+       the locations of any imported libraries.
+
+    5. copy any .c, .cpp, .h files into the build directory directly.  for
+       every .pde file, add the header offset to its previously computed
+       preproc offset (since we dumped headers first)
