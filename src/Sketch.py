@@ -14,9 +14,11 @@ import os.path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import traceback
 import zipfile
-from os.path import join, abspath
+from os.path import join, abspath, basename
 from subprocess import PIPE, STDOUT
 
 import preprocess as PP
@@ -226,40 +228,38 @@ class Sketch(object):
     def prettify_compiler_line(self, line): # TODO
         return line
 
-    def archive(self, archive_path=u''):
-        """Creates an archive of the current sketch contents.
+    def archive(self, archive_path):
+        """Creates an archive of the current sketch contents in zip
+        format in the given path.  Directory containing the path must
+        exist."""
+        # FIXME file name encoding bug (need to set utf-8 bit in
+        # general purpose bit flag, see pkware appnote)
 
-        If archive_path=='', the default archive will be the sketch's
-        directory name with .zip appended.  The default save location
-        is the sketchbook.
-
-        If any archive already exists in archive_path, it will be
-        overwritten."""
-        if archive_path == u'':
-            archive_path = join(preference('sketchbook'), self.dir) + u'.zip'
+        # FIXME won't archive empty directories; not sure ZIP can do it
 
         success = True
 
         try:
             zip_file = zipfile.ZipFile(archive_path, 'w',
                                        compression=zipfile.ZIP_DEFLATED)
-
+            expanded_dir_name = basename(archive_path)[:-len(u'.zip')]
             for root, dirs, files in os.walk(self.dir):
-                archive_root = abspath(root)[len(abspath(self.dir)):]
-                print('archive_root: "{0}"'.format(archive_root))
+                rel_dir = root[len(self.dir):].lstrip(os.path.sep)
                 for f in files:
-                    fullpath = join(root, f)
-                    archive_name = join(archive_root, f)
-                    zip_file.write(fullpath, archive_name)
+                    zip_file.write(join(root, f),
+                                   join(expanded_dir_name, rel_dir, f))
         except:
             success = False
+            print("Couldn't create archive in {0}:".format(archive_path),
+                  file=sys.stderr)
+            traceback.print_tb(sys.exc_info()[2], file=sys.stderr)
         finally:
             zip_file.close()
 
         if success:
             self.ui.show_notice(u'Success',
-                                u'Archive successfully created in:\n' + \
-                                    archive_path)
+                                u'Archive successfully created in: ' + \
+                                    basename(archive_path))
         else:
             self.ui.show_error(u'Failure',
                                u"Couldn't create the archive.  " + \

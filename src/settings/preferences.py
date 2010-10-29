@@ -36,7 +36,7 @@ def has_preference(key):
 
 CREATED_USER_PREFS_FILE = False
 
-DEBUG = True
+__DEBUG = False
 
 PCfg = collections.namedtuple('PrefConfig', 'desc pickle_default')
 
@@ -72,7 +72,7 @@ PREF_CONFIG = \
           False),
 
  'editor_emacs_keybindings':
-     PCfg(u'If true, enables some emacs keybindings in the editor window.',
+     PCfg(u'If true (default), enables some emacs keybindings in the editor.',
           False)
  }
 
@@ -106,7 +106,7 @@ def _load_prefs():              # TODO error handling
         with open(user_prefs, 'wb') as f_out:
             pickle.dump(to_pickle, f_out)
 
-        if DEBUG:
+        if __DEBUG:
             print('pickled prefs:')
             pprint(to_pickle)
 
@@ -119,7 +119,7 @@ def _load_prefs():              # TODO error handling
             if p in user_dict: pref_dict[p] = user_dict[p]
             else: pref_dict[p] = defaults[p]()
 
-    if DEBUG:
+    if __DEBUG:
         print('all prefs:')
         pprint(pref_dict)
 

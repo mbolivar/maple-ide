@@ -6,6 +6,7 @@ import datetime
 import os
 import os.path
 import string
+from datetime import datetime
 from os import listdir
 from os.path import isdir, join
 
@@ -54,26 +55,40 @@ def most_recent_sketch_file():
 def sketch_source_files(d):
     return [x for x in listdir(d) if x.endswith(EXN)]
 
-def fresh_sketch(ui):
-    """nobody else should be touching the sketchbook directory!"""
-    global _unsaved_sketches
-    base = unicode(datetime.datetime.now().strftime('sketch_%b%d').lower())
-    existing_sketches = sketch_dirs() + list(_unsaved_sketches)
+def _fresh_name(fmt, existing_names):
     name = u''
     for c in string.ascii_lowercase:
-        name = base + c
-        if name not in existing_sketches: break
+        name = fmt.format(fresh=c)
+        if name not in existing_names: break
     else:
         # we ran out of letters, just use numbers
         i = 1
         while True:
-            name = base + u'-' + str(i)
+            name = fmt.format(fresh=u'-' + unicode(i))
             if name not in existing_sketches: break
             i += 1
+    return name
 
+def fresh_sketch(ui):          # FIXME races with self and file system
+    """nobody else should be touching the sketchbook directory!"""
+    global _unsaved_sketches
+
+    date_str = unicode(datetime.now().strftime('%b%d').lower())
+    fmt = u'sketch_{0}{{fresh}}'.format(date_str)
+    existing_sketches = set(sketch_dirs() + list(_unsaved_sketches))
+
+    name = _fresh_name(fmt, existing_sketches)
     _unsaved_sketches.add(name)
     main_file = os.path.join(_abs(name), name + EXN)
+
     return Sketch(ui, main_file, unsaved=True)
+
+def fresh_sketch_archive(sketch): # FIXME races like fresh_sketch
+    date_str = unicode(datetime.now().strftime('%y%m%d'))
+    name_fmt = u'{n}_{d}{{fresh}}.zip'.format(n=sketch.name, d=date_str)
+    existing = set(a for a in listdir(SKETCHES) if a.endswith(u'.zip'))
+
+    return _fresh_name(name_fmt, existing)
 
 def sketch_main_file(sketch_dir):
     """Given a nonempty sketch directory, return the absolute path to

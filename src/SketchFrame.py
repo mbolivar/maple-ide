@@ -127,8 +127,10 @@ class SketchFrame(wx.Frame, UserInterface):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         # this *must* be done after GUI setup
-        if main_file is None: self.sketch = SB.fresh_sketch(self)
-        else: self.sketch = Sketch(self, main_file)
+        if main_file is None:
+            self.sketch = SB.fresh_sketch(self)
+        else:
+            self.sketch = Sketch(self, main_file)
 
         # the sketch setter calls CPPStyledTextCtrl.SetText, but we aren't
         # really modified yet, and we don't want the user to be able to
@@ -402,9 +404,8 @@ class SketchFrame(wx.Frame, UserInterface):
     def OnAutoFormat(self, evt): # TODO
         not_implemented_popup()
 
-    def OnArchiveSketch(self, evt): # TODO
-        date = unicode(datetime.datetime.now().strftime('_%b%d').lower())
-        default_file = self.sketch.name + date + u'.zip'
+    def OnArchiveSketch(self, evt):
+        default_file = SB.fresh_sketch_archive(self.sketch)
 
         path = wx.FileSelector(u'Archive Sketch as:',
                                default_path=preference('sketchbook'),
@@ -412,7 +413,7 @@ class SketchFrame(wx.Frame, UserInterface):
                                flags=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
                                parent=self)
 
-        if path == u"": return  #user hit cancel
+        if path == u'': return  #user hit cancel
 
         self.sketch.archive(path)
 
