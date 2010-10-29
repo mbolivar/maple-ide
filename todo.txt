@@ -1,9 +1,17 @@
 General TODO notes on the IDE rewrite.
 
-COMPILATION
------------
+- too many die()s around; figure out a better way to get errors to
+  user so they can make a decision.  probably merge wx_util and util
+  interfaces.
 
-- need to fix the makefile so that the file names aren't so damn long
+- consider unifying Sketch and sketchbook; the current thing is
+  starting to feel stupid
+
+MIGRATION
+---------
+
+- need to build a migration utility which imports preferences from old
+  IDE and from Arduino
 
 TABS
 ----
