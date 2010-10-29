@@ -5,15 +5,6 @@ from wx.stc import *
 
 from settings.preferences import preference
 
-# tabs and spaces.  these values are set mostly according to my
-# personal religion [mbolivar], except that tab doesn't do
-# indentation, it just causes a tab to be inserted; IDE users might
-# get surprised/frustrated by tab = indent-line
-PRIMARY_OFFSET = 4
-TAB_WIDTH = 4
-USE_TABS = False
-TAB_INDENTS_LINE = False
-
 # the best primer on StyledTextCtrl i could find (it's old but good):
 #
 # http://www.yellowbrain.com/stc/index.html
@@ -76,9 +67,9 @@ class CPPStyledTextCtrl(StyledTextCtrl):
         self.SetProperty("fold.preprocessor", "0")
         self.SetProperty("fold.compact", "0")
 
-        self.SetUseTabs(USE_TABS)
-        self.SetTabWidth(TAB_WIDTH)
-        self.SetTabIndents(TAB_INDENTS_LINE)
+        self.SetUseTabs(preference('editor_insert_tabs'))
+        self.SetTabWidth(preference('editor_tab_width'))
+        self.SetTabIndents(preference('editor_tab_indents_line'))
 
         self._set_keybindings()
 

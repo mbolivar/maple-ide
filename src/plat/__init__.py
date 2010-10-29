@@ -30,14 +30,11 @@ LINUX64 = 'linux64'
 # runtime platform
 OS = _guess_os()
 
-if OS == OSX:
-    import _plat_osx as _plat
-elif OS == WINXP:
-    import _plat_winxp as _plat
-elif OS == LINUX32:
-    import _plat_linux32 as _plat
-elif OS == LINUX64:
-    import _plat_linux64 as _plat
+if OS == OSX: import _plat_osx as _plat
+elif OS == WINXP: import _plat_winxp as _plat
+elif OS == LINUX32: import _plat_linux32 as _plat
+elif OS == LINUX64: import _plat_linux64 as _plat
+else: die('unknown os: {0}', OS)
 
 DOCUMENTS = _plat.documents
 APP_DATA = _plat.app_data
