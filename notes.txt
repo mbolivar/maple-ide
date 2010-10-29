@@ -1,13 +1,3 @@
-- too many die()s around; figure out a better way to get errors to
-  user so they can make a decision.  probably merge wx_util and util
-  interfaces.
-
-- need to build a migration utility which imports preferences from old
-  IDE and from Arduino
-
-- consider unifying Sketch and sketchbook; the current thing is
-  starting to feel stupid
-
 - preprocessing steps (in the java version)
 
     1. cat all the .pde files together.  mark each file with its line
