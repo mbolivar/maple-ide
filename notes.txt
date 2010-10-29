@@ -17,7 +17,3 @@
 
     4. add to "class path" and "library path" (!@#$) the paths to
        the locations of any imported libraries.
-
-    5. copy any .c, .cpp, .h files into the build directory directly.  for
-       every .pde file, add the header offset to its previously computed
-       preproc offset (since we dumped headers first)
