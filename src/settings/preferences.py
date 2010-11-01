@@ -82,62 +82,79 @@ def set_and_save(preference, value):
 
 __DEBUG = False
 
-pcfg = collections.namedtuple('pcfg', 'desc pickle_default')
+# General info for a preferences.
+#
+# desc: (Short) string description
+# help: Longer description
+# group: Preference group ('Compilation', 'General', etc.)
+# type: Kind of preference, (currently) one of: ['path', 'bool', 'int']
+pcfg = collections.namedtuple('pcfg', 'desc help group type pickle_default')
 
 PREF_CONFIG = \
 {'build_dir':
-     pcfg(u"Parent build directory.  When a sketch is compiled, " + \
-              u"its build directory will be a child of this directory.",
-          False),
+     pcfg(u'Parent build directory',
+          u'When a sketch is compiled, its build directory will be a ' + \
+              u'child of this directory.',
+          'Compilation', 'path', False),
 
  'build_dir_delete_on_exit':
-     pcfg(u'If true (default), deletes the parent build directory when ' + \
+     pcfg(u'Delete parent build directory on exit',
+          u'If true (default), deletes the parent build directory when ' + \
               'the IDE exits.',
-          False),
+          'General', 'bool', False),
 
  'editor_emacs_keybindings':
-     pcfg(u'If true (default), enables some emacs keybindings in the editor.',
-          False),
+     pcfg(u'Emacs keybindings',
+          u'If true (default is false), enables some Emacs-style ' + \
+              u'keybindings in the editor.',
+          'Editor', 'bool', False),
 
  'editor_insert_tabs':
-     pcfg(u'Whether or not the editor will insert literal TAB characters. ' + \
+     pcfg(u'Allow tabs',
+          u'Whether or not the editor will insert literal TAB characters. ' + \
               u'When disabled, if you press the tab key, ' + \
               u'the editor inserts a number of spaces equal to the value ' + \
-              u'of the {editor_tab_width} preference. ' + \
+              u'of the Tab Width preference. ' + \
               u'If enabled, pressing the tab key inserts a literal ' + \
               u'tab character.',
-          False),
+          'Editor', 'bool', False),
 
  'editor_tab_indents_line':
-     pcfg(u'If enabled (default is disabled), pressing the tab key will ' + \
+     pcfg(u'Tab indents line',
+          u'If enabled (default is disabled), pressing the tab key will ' + \
               u'indent the line, rather than inserting a tab character ' + \
               u'or equivalent number of spaces.',
-          False),
+          'Editor', 'bool', False),
 
  'editor_tab_width':
-     pcfg(u'Number of spaces to display for one tab.', True),
+     pcfg(u'Tab width', u'Number of spaces to display for one tab.',
+          'Editor', 'int', True),
 
  'lib_maple_home':
-     pcfg(u"Path to the libmaple source tree to compile against. " + \
-              "If missing, default is the version bundled with MapleIDE. " + \
+     pcfg(u'libmaple home',
+          u"Path to the libmaple source tree to compile against. " + \
+              "Default is the version bundled with MapleIDE. " + \
               "MapleIDE and libmaple are released in lockstep to ease " + \
               "debugging, so be aware that versions of libmaple obtained " + \
               "from github are likely to be less stable.",
-          False),
+          'Compilation', 'path', False),
 
  'make_path':
-     pcfg(u"Absolute path to the make executable.   " + \
-              u"If missing, default is the version bundled with MapleIDE. " + \
+     pcfg(u'Path to make',
+          u"Absolute path to the make executable. " + \
+              u"Default is the version bundled with MapleIDE. " + \
               u"Make is a program in the compilation process.  If you're " + \
               u"unfamiliar with Make, this preference is probably best " + \
               u"left alone.",
-          False),
+          'Compilation', 'path', False),
 
  'sketchbook':
-     pcfg(u"Directory containing the user's sketches.", True),
+     pcfg(u'Sketchbook', u"Directory containing your sketches.",
+          'General', 'path', True),
 
  'user_libs':
-     pcfg(u"Directory containing the user's libraries.", True),
+     pcfg(u'Libraries', u"Directory containing your extra libraries.",
+          'General', 'path', True),
  }
 
 # Defaults delayed in order to prevent unintended side effects.

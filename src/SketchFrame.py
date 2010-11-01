@@ -16,9 +16,10 @@ import wx.aui
 import wx.stc
 from wx.aui import AuiNotebook
 
+import examplebook as EB
+import PreferencesFrame
 import resources
 import settings
-import examplebook as EB
 import sketchbook as SB
 from CPPStyledTextCtrl import CPPStyledTextCtrl
 from settings import SKETCH_EXN as EXN
@@ -69,7 +70,7 @@ class BetterAuiNotebook(AuiNotebook):
         self.SetSelection(page_or_index)
     active_page = property(fget=__get_active_page,fset=__set_active_page)
 
-#----------------------------------------------------------------------------#-
+#-----------------------------------------------------------------------------#
 
 class SketchFrame(wx.Frame, UserInterface):
     """wx.Frame for showing a sketch.
@@ -94,7 +95,6 @@ class SketchFrame(wx.Frame, UserInterface):
         self.__mgr = wx.aui.AuiManager(self)
 
         self.menu_bar = self._make_menu_bar()
-        self.SetMenuBar(self.menu_bar)
 
         self._make_toolbar()
 
@@ -187,6 +187,10 @@ class SketchFrame(wx.Frame, UserInterface):
         file_menu.AppendSeparator()
         bind(u"&Page Setup\tSHIFT-CTRL-P", self.OnPageSetup)
         bind(u"Print\tCTRL-P", self.OnPrint)
+        file_menu.AppendSeparator()
+        prefs_item = file_menu.Append(wx.ID_PREFERENCES,
+                                      "&Preferences\tCTRL-,")
+        self.Bind(wx.EVT_MENU, self.OnPreferences, prefs_item)
 
         menu_bar.Append(file_menu, "&File")
 
@@ -255,6 +259,8 @@ class SketchFrame(wx.Frame, UserInterface):
         bind(u"Visit LeafLabs.com", self.OnVisitLeafLabs)
 
         menu_bar.Append(help_menu, u"&Help")
+
+        self.SetMenuBar(menu_bar)
 
         return menu_bar
 
@@ -332,6 +338,11 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def OnPrint(self, evt): # TODO
         not_implemented_popup()
+
+    def OnPreferences(self, evt):
+        f = PreferencesFrame.get_instance()
+        f.Raise()
+        f.Show(True)
 
     #----------------------- Edit Menu event handlers ------------------------#
 

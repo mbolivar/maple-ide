@@ -17,3 +17,8 @@
 
     4. add to "class path" and "library path" (!@#$) the paths to
        the locations of any imported libraries.
+
+- wx docs: "To create a frame which can not be resized by user, you
+  may use the following combination of styles: wxDEFAULT_FRAME_STYLE &
+  ~ (wxRESIZE_BORDER | wxRESIZE_BOX | wxMAXIMIZE_BOX)"
+
