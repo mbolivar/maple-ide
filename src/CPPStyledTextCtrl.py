@@ -3,6 +3,7 @@ from pprint import pprint
 import wx
 from wx.stc import *
 
+import settings
 from settings.preferences import preference
 
 # the best primer on StyledTextCtrl i could find (it's old but good):
@@ -19,8 +20,7 @@ class CPPStyledTextCtrl(StyledTextCtrl):
 
         self.SetLexer(STC_LEX_CPP)
 
-        # specify the c++ keywords.  it's crap that i have to, given
-        # that THEY ALREADY WROTE A LEXER
+        # specify the c++ keywords.  it's crap that i have to.
         cpp_keywords = \
             ["and", "and_eq", "asm", "auto", "bitand", "bitor", "bool",
              "break", "case", "catch", "char", "class", "compl", "const",
@@ -67,19 +67,20 @@ class CPPStyledTextCtrl(StyledTextCtrl):
         self.SetProperty("fold.preprocessor", "0")
         self.SetProperty("fold.compact", "0")
 
+        settings.preferences.register_change_watcher(self)
         self.SetUseTabs(preference('editor_insert_tabs'))
         self.SetTabWidth(preference('editor_tab_width'))
         self.SetTabIndents(preference('editor_tab_indents_line'))
 
         self._set_keybindings()
 
-    #------------------------------ Keybindings ------------------------------#
+    # -- Keybindings ---------------------------------------------------------#
 
     def _set_keybindings(self):
         if preference('editor_emacs_keybindings'):
-            self._enable_emacs_keybindings()
+            self.enable_emacs_keybindings()
 
-    def _enable_emacs_keybindings(self):
+    def enable_emacs_keybindings(self):
         self.CmdKeyAssign(ord('P'), STC_SCMOD_CTRL, STC_CMD_LINEUP)
         self.CmdKeyAssign(ord('N'), STC_SCMOD_CTRL, STC_CMD_LINEDOWN)
 
@@ -93,8 +94,22 @@ class CPPStyledTextCtrl(StyledTextCtrl):
 
         self.CmdKeyAssign(STC_KEY_BACK, STC_SCMOD_ALT, STC_CMD_DELWORDLEFT)
 
+    def disable_emacs_keybindings(self):
+        # FIXME map these back onto app defaults? what happens?
+        self.CmdKeyClear(ord('P'), STC_SCMOD_CTRL)
+        self.CmdKeyClear(ord('N'), STC_SCMOD_CTRL)
 
-    #-------------------------------------------------------------------------#
+        self.CmdKeyClear(ord('A'), STC_SCMOD_CTRL)
+        self.CmdKeyClear(ord('E'), STC_SCMOD_CTRL)
+        self.CmdKeyClear(ord('B'), STC_SCMOD_CTRL)
+        self.CmdKeyClear(ord('F'), STC_SCMOD_CTRL)
+
+        self.CmdKeyClear(ord('B'), STC_SCMOD_ALT)
+        self.CmdKeyClear(ord('F'), STC_SCMOD_ALT)
+
+        self.CmdKeyClear(STC_KEY_BACK, STC_SCMOD_ALT)
+
+    # -- Text editing --------------------------------------------------------#
 
     def _lfp(self, p):          # convenience
         return self.LineFromPosition(p)
@@ -167,3 +182,18 @@ class CPPStyledTextCtrl(StyledTextCtrl):
         new_lines[-1] = new_lines[-1].rstrip() # or we'll insert an extra \n
 
         self.ReplaceSelection(''.join(new_lines))
+
+    # -- Preferences change handler ------------------------------------------#
+
+    def preferences_changed(self, delta):
+        if 'editor_insert_tabs' in delta:
+            self.SetUseTabs(delta['editor_insert_tabs'])
+        if 'editor_tab_width' in delta:
+            self.SetTabWidth(delta['editor_tab_width'])
+        if 'editor_tab_indents_line' in delta:
+            self.SetTabIndents(delta['editor_tab_indents_line'])
+        if 'editor_emacs_keybindings' in delta:
+            if delta['editor_emacs_keybindings']:
+                self.enable_emacs_keybindings()
+            else:
+                self.disable_emacs_keybindings()

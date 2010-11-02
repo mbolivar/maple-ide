@@ -1,58 +1,57 @@
 from __future__ import print_function
 
+from pprint import pprint
+
 import wx
 
 import settings
+import wx_util
 from settings import preferences
 
 def get_instance():
-    """Return the singleton instance."""
-    global __instance
-    if not __instance:
-        __instance = PreferencesFrame()
-    return __instance
+    """Return the only instance, creating one if necessary."""
+    global _instance
+    if _instance is None:
+        _instance = PreferencesFrame()
+    return _instance
 
-__instance = None
+def _instance_closed():
+    global _instance
+    _instance = None
+
+# not a singleton, but there's at most one.
+_instance = None
+
+_PAGE_MIN_SIZE = (600,200)
 
 class PreferencesFrame(wx.Frame):
+    """Don't instantiate this yourself; use get_instance() instead."""
 
     def __init__(self):
-        wx.Frame.__init__(self, None, -1, "Preferences")
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Preferences")
 
-        self.pnl = wx.Panel(self)
+        save_btn = wx.Button(self, id=wx.ID_SAVE)
+        self.Bind(wx.EVT_BUTTON, self.OnSave, save_btn)
 
-        self.mgr = wx.aui.AuiManager()
-        self.mgr.SetManagedWindow(self.pnl)
+        cancel_btn = wx.Button(self, id=wx.ID_CANCEL)
+        self.Bind(wx.EVT_BUTTON, self.OnCancel, cancel_btn)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        self.Centre()
+        sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # a notebook/tabbed pane stores the different categories of
-        # preference.  CLIP_CHILDREN apparently reduces flicker?
-        self.nb = wx.Notebook(self.pnl, wx.ID_ANY, style=wx.CLIP_CHILDREN)
+        self.nb = wx.Notebook(self, wx.ID_ANY)
         self._layout_nb()
+        sizer.Add(self.nb, border=20, flag=wx.EXPAND | wx.LEFT | wx.RIGHT)
 
-        # save button
-        # button_pnl = wx.Panel(self)
-        # save_btn = wx.Button(button_pnl, wx.ID_SAVE)
-        # # bsizer = wx.BoxSizer(wx.HORIZONTAL)
-        # # bsizer.AddStretchSpacer()
-        # # bsizer.Add(save_btn)
-        # self.Bind(wx.EVT_BUTTON, self.OnSave, save_btn)
+        save_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        save_sizer.AddStretchSpacer()
+        save_sizer.Add(cancel_btn, border=5, flag=wx.ALL)
+        save_sizer.Add(save_btn, border=5, flag=wx.ALL)
+        sizer.Add(save_sizer, flag=wx.ALIGN_RIGHT)
 
-        self.mgr.AddPane(self.nb,
-                         wx.aui.AuiPaneInfo().CenterPane().Name("nb"))
-        # self.mgr.AddPane(button_pnl,
-        #                  wx.aui.AuiPaneInfo().
-        #                  Bottom().
-        #                  Floatable(False).
-        #                  MinSize(bsizer.GetMinSize()).
-        #                  BestSize(bsizer.GetMinSize()).
-        #                  CloseButton(False).
-        #                  Name("but"))
-
-
-
-        self.mgr.Update()
+        self.SetSizer(sizer)
+        sizer.SetSizeHints(self)
+        self.Centre()
 
     def _layout_nb(self):
 
@@ -80,18 +79,21 @@ class PreferencesFrame(wx.Frame):
 
             tt = wx.ToolTip(cfg.help)
             ptype = cfg.type
-            if ptype == 'path':
+            if ptype == 'path' or ptype == 'dir':
                 desc = wx.StaticText(page, wx.ID_ANY, cfg.desc + u':',
                                      style=wx.ALIGN_LEFT)
                 desc.SetToolTip(tt)
-                tc = wx.TextCtrl(page, wx.ID_ANY,
-                                 preferences.preference(pref))
+                value = preferences.preference(pref)
+                if ptype == 'path':
+                    p = wx.FilePickerCtrl(page, wx.ID_ANY, path=value)
+                else:
+                    p = wx.DirPickerCtrl(page, wx.ID_ANY, path=value)
 
-                self.pref_controls[pref] = tc
+                self.pref_controls[pref] = p
 
                 sizer.AddSpacer(10)
                 sizer.Add(desc, border=10, flag=wx.ALIGN_LEFT | wx.LEFT)
-                sizer.Add(tc, border=40, flag=wx.EXPAND | wx.LEFT)
+                sizer.Add(p, border=40, flag=wx.LEFT | wx.EXPAND)
             elif ptype == 'bool':
                 cb = wx.CheckBox(page, wx.ID_ANY, cfg.desc)
                 cb.SetValue(preferences.preference(pref))
@@ -116,12 +118,47 @@ class PreferencesFrame(wx.Frame):
                 child_sizer.Add(tc)
                 sizer.AddSpacer(10)
                 sizer.Add(child_sizer, border=10, flag=wx.LEFT)
+            else:
+                die(u'Unknown preference type: {0}'.format(ptype))
 
         for i in range(self.nb.GetPageCount()):
             page = self.nb.GetPage(i)
             sizer = sizers[i]
+            sizer.SetMinSize(_PAGE_MIN_SIZE)
             page.SetSizer(sizer)
 
 
     def OnSave(self, evt):
-        print("you clicked save.")
+        controller_vals = {}
+        for pref, control in self.pref_controls.iteritems():
+            cfg = preferences.PREF_CONFIG[pref]
+            ptype = cfg.type
+            if ptype == 'path' or ptype == 'dir':
+                controller_vals[pref] = control.GetPath()
+            elif ptype == 'bool':
+                controller_vals[pref] = control.IsChecked()
+            elif ptype == 'int':
+                err = u'Cannot save preference {0}. '.format(cfg.desc)
+                err += u'Preference must be a number greater than zero'
+
+                try:
+                    val = int(control.GetValue())
+                except:
+                    wx_util.error_popup(err)
+                    return
+
+                if val <= 0:
+                    wx_util.error_popup(err)
+                    return
+
+                controller_vals[pref] = val
+        preferences.set_and_save(controller_vals)
+        _instance_closed()
+        self.Close()
+
+    def OnCancel(self, evt):
+        self.Close()
+
+    def OnClose(self, evt):
+        _instance_closed()
+        evt.Skip()

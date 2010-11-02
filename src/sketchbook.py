@@ -12,15 +12,12 @@ from os.path import isdir, join
 
 import settings
 from settings import SKETCH_EXN as EXN
-from settings.preferences import preference
+from settings.preferences import preference as P
 from Sketch import Sketch
 
 _unsaved_sketches = set()
 
-SKETCHES = preference('sketchbook')
-LIBS = preference('user_libs')
-
-def _abs(d): return join(SKETCHES, d)
+def _abs(d): return join(P('sketchbook'), d)
 
 def mark_saved(sketch):
     if sketch not in _unsaved_sketches:
@@ -32,8 +29,10 @@ def is_sketchdir(d):
     return bool([x for x in listdir(d) if x.endswith(EXN)])
 
 def sketch_dirs():
-    return [d for d in listdir(SKETCHES) if \
-                isdir(_abs(d)) and _abs(d) != LIBS and is_sketchdir(_abs(d))]
+    return [d for d in listdir(P('sketchbook')) if \
+                isdir(_abs(d)) and \
+                _abs(d) != P('user_libs') and \
+                is_sketchdir(_abs(d))]
 
 def sketch_dirs_abs():
     return [_abs(d) for d in sketch_dirs()]
@@ -86,14 +85,15 @@ def fresh_sketch(ui):          # FIXME races with self and file system
 def fresh_sketch_archive(sketch): # FIXME races like fresh_sketch
     date_str = unicode(datetime.now().strftime('%y%m%d'))
     name_fmt = u'{n}_{d}{{fresh}}.zip'.format(n=sketch.name, d=date_str)
-    existing = set(a for a in listdir(SKETCHES) if a.endswith(u'.zip'))
+    existing = set(a for a in listdir(P('sketchbook')) if \
+                       a.endswith(u'.zip'))
 
     return _fresh_name(name_fmt, existing)
 
 def sketch_main_file(sketch_dir):
-    """Given a nonempty sketch directory, return the absolute path to
-    the main file in the sketch.
-    """
+    """Given a nonempty sketch directory, try to return the absolute
+    path to the main file in the sketch.  Returns some file in any
+    case."""
     fs = [x for x in os.listdir(sketch_dir) if x.endswith(EXN)]
     if not fs: return None
 
@@ -104,7 +104,7 @@ def sketch_main_file(sketch_dir):
         if f == sketch_name + EXN: return join(sketch_dir, f)
 
     # ok, that didn't work; try to find a file with a setup method
-    # HACK this is a pretty lame attempt
+    # FIXME [HACK] this is pretty lame
     for f in fs:
         with open(os.path.join(sketch_dir,f),'r') as f_in:
             if u'setup' in f_in.read(): return join(sketch_dir, f)

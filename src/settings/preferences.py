@@ -59,7 +59,8 @@ def preference(key):
 
 @pref_atomic
 def preference_with_default(key, default):
-    try: return preference(key)
+    global _prefs
+    try: return _prefs[key]
     except: return default
 
 @pref_atomic
@@ -73,10 +74,39 @@ def save():
     _unsafe_save_prefs(user_prefs, _prefs)
 
 @pref_atomic
-def set_and_save(preference, value):
+def set_and_save(pref_dict):
     global _prefs
-    _prefs[preference] = value
-    _unsafe_save_prefs(user_prefs, _prefs)
+    global _watchers
+    delta = {}
+    for pref, val in pref_dict.iteritems():
+        if val != _prefs[pref]:
+            _prefs[pref] = val
+            delta[pref] = val
+    if delta:
+        _unsafe_save_prefs(user_prefs, _prefs)
+        for w in _watchers:
+            if hasattr(w, 'preferences_changed'):
+                w.preferences_changed(delta)
+            else:
+                w(delta)
+    else:
+        print('no delta')
+
+@pref_atomic
+def register_change_watcher(watcher):
+    """Register a change listener on the user preferences.
+
+    This can be an object with a callable 'preferences_changed'
+    attribute, or a callable.  When user preferences get changed
+    through the use of this module, either the
+    watcher.preferences_changed gets called, or, if that doesn't
+    exist, watcher itself is called, with argument a dictionary from
+    the changed preferences to their new values.
+
+    Try not to use this; do so only if you're interacting with some
+    third party code that needs to keep current."""
+    global _watchers
+    _watchers.append(watcher)
 
 # -- Global defaults (platform-specific in _plat_prefs) ----------------------#
 
@@ -87,7 +117,7 @@ __DEBUG = False
 # desc: (Short) string description
 # help: Longer description
 # group: Preference group ('Compilation', 'General', etc.)
-# type: Kind of preference, (currently) one of: ['path', 'bool', 'int']
+# type: Kind of preference, (currently) one of: ['path', 'dir', 'bool', 'int']
 pcfg = collections.namedtuple('pcfg', 'desc help group type pickle_default')
 
 PREF_CONFIG = \
@@ -95,7 +125,7 @@ PREF_CONFIG = \
      pcfg(u'Parent build directory',
           u'When a sketch is compiled, its build directory will be a ' + \
               u'child of this directory.',
-          'Compilation', 'path', False),
+          'Compilation', 'dir', False),
 
  'build_dir_delete_on_exit':
      pcfg(u'Delete parent build directory on exit',
@@ -137,24 +167,23 @@ PREF_CONFIG = \
               "MapleIDE and libmaple are released in lockstep to ease " + \
               "debugging, so be aware that versions of libmaple obtained " + \
               "from github are likely to be less stable.",
-          'Compilation', 'path', False),
+          'Compilation', 'dir', False),
 
  'make_path':
      pcfg(u'Path to make',
           u"Absolute path to the make executable. " + \
               u"Default is the version bundled with MapleIDE. " + \
-              u"Make is a program in the compilation process.  If you're " + \
-              u"unfamiliar with Make, this preference is probably best " + \
-              u"left alone.",
+              u"Make is a program used during compilation.  If you're " + \
+              u"unfamiliar with it, the default is probably best.",
           'Compilation', 'path', False),
 
  'sketchbook':
      pcfg(u'Sketchbook', u"Directory containing your sketches.",
-          'General', 'path', True),
+          'General', 'dir', True),
 
  'user_libs':
      pcfg(u'Libraries', u"Directory containing your extra libraries.",
-          'General', 'path', True),
+          'General', 'dir', True),
  }
 
 # Defaults delayed in order to prevent unintended side effects.
@@ -217,3 +246,6 @@ def _unsafe_save_prefs(path, pref_dict):
 
 with pref_locked():
     _prefs = _unsafe_load_prefs()
+
+# change listeners; they get notified when a preference changes
+_watchers = []
