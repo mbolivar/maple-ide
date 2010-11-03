@@ -23,7 +23,7 @@ import settings
 import sketchbook as SB
 from CPPStyledTextCtrl import CPPStyledTextCtrl
 from settings import SKETCH_EXN as EXN
-from settings.preferences import preference
+from settings.preferences import preference, PREF_CONFIG
 from Sketch import Sketch
 from ui import UserInterface
 from wx_util import *
@@ -86,7 +86,8 @@ class SketchFrame(wx.Frame, UserInterface):
                  title=u"Maple IDE", pos=(50,50), size=(640,700),
                  style=wx.DEFAULT_FRAME_STYLE, name=u"Maple IDE"):
         basename = os.path.basename(main_file) if main_file else None
-        title = u'Maple IDE | ' + basename if basename else u'Maple IDE'
+        title = u'Maple IDE {0}'.format(settings.IDE_VERSION)
+        if basename: title += u' | ' + basename
         wx.Frame.__init__(self, parent, id, title, pos, size, style, name)
 
         self._pages = {}        # {basename: CPPStyledTextCtrl}
@@ -112,16 +113,18 @@ class SketchFrame(wx.Frame, UserInterface):
         # subprocess (compiler/uploader) output goes here
         self.sub = wx.TextCtrl(self, -1, u'', wx.DefaultPosition,
                                wx.Size(200, 150),
-                               wx.NO_BORDER | wx.TE_MULTILINE)
-        comp_info = wx.aui.AuiPaneInfo()
-        comp_info.Bottom()
-        comp_info.CaptionVisible(True)
-        comp_info.CloseButton(False)
-        comp_info.Floatable(False)
+                               wx.NO_BORDER |
+                               wx.TE_MULTILINE |
+                               wx.TE_READONLY)
 
         # add the panes to the manager
         self.__mgr.AddPane(self.nb, wx.CENTER)
-        self.__mgr.AddPane(self.sub, info=comp_info)
+        self.__mgr.AddPane(self.sub,
+                           wx.aui.AuiPaneInfo().
+                           Bottom().
+                           CaptionVisible(True).
+                           CloseButton(False).
+                           Floatable(False))
         self.__mgr.Update()
 
         self.Bind(wx.EVT_CLOSE, self.OnClose)
@@ -151,7 +154,9 @@ class SketchFrame(wx.Frame, UserInterface):
             item = menu.Append(-1, text)
             self.Bind(wx.EVT_MENU, handler, item)
         def make_bind(menu):
-            return lambda txt, handler: bind_handler(menu, txt, handler)
+            def handler(txt, handler):
+                bind_handler(menu, txt, handler)
+            return handler
 
         ## File menu
         file_menu = wx.Menu()
@@ -240,7 +245,21 @@ class SketchFrame(wx.Frame, UserInterface):
         tools_menu.AppendSeparator()
         bind(u"&Serial Monitor\tSHIFT-CTRL-M", self.OnSerialMonitor)
         tools_menu.AppendSeparator()
-        bind(u"BOARDS SUBMENU", self.OnBoardsSubmenu) # TODO
+        # boards submenu
+        boards_menu = wx.Menu()
+        boards = PREF_CONFIG['board'].data['values']
+        memory_targets = PREF_CONFIG['memory_target'].data['values']
+        boards_values = [(board, memory_target) for \
+                             board in boards for \
+                             memory_target in memory_targets]
+        self.board_item_to_config = {}
+        preferred = (preference('board'), preference('memory_target'))
+        for board, target in boards_values:
+            description = u'Leaflabs {0} to {1}'.format(board, target)
+            item = boards_menu.AppendRadioItem(wx.ID_ANY, description)
+            self.board_item_to_config[item] = (board, target)
+            if (board, target) == preferred: item.Check()
+        tools_menu.AppendMenu(wx.ID_ANY, u'Board', boards_menu)
         bind(u"SERIAL PORT SUBMENU", self.OnSerialPortSubmenu) # TODO
         tools_menu.AppendSeparator()
         bind(u"BURN_BOOTLOADER", self.OnBurnBootloader) # TODO
@@ -268,21 +287,25 @@ class SketchFrame(wx.Frame, UserInterface):
 
     def _make_toolbar(self):
         self.toolbar = self.CreateToolBar()
-        button_pieces = resources.desprite_bitmap(resources.TOOLBAR_BUTTONS, 7)
-        verify, stop, new_sk, open_sk, save_sk, upload, serial = button_pieces
+        bitmaps = resources.desprite_bitmap(resources.TOOLBAR_BUTTONS, 7)
+        tooltips = [u'Verify', u'Stop', u'New', u'Open', u'Save', u'Upload',
+                     u'Serial Monitor']
+        verify, stop, new, open_, save, upload, serial = zip(bitmaps, tooltips)
+
         self._add_to_toolbar(verify, self.OnVerify)
         self._add_to_toolbar(stop, self.OnStop)
-        self._add_to_toolbar(new_sk, self.OnNewSketchToolbar)
-        self._add_to_toolbar(open_sk, self.OnOpenSketchToolbar)
-        self._add_to_toolbar(save_sk, self.OnSave)
+        self._add_to_toolbar(new, self.OnNewSketchToolbar)
+        self._add_to_toolbar(open_, self.OnOpenSketchToolbar)
+        self._add_to_toolbar(save, self.OnSave)
         self._add_to_toolbar(upload, self.OnUpload)
         self._add_to_toolbar(serial, self.OnSerialMonitor)
         self.toolbar.Realize()
 
-    def _add_to_toolbar(self, bitmap, click_handler):
+    def _add_to_toolbar(self, bmp_tip, click_handler):
+        bitmap, tooltip = bmp_tip
         tool_id = wx.NewId()
         self.toolbar.SetToolBitmapSize(bitmap.GetSize())
-        self.toolbar.AddTool(tool_id, bitmap)
+        self.toolbar.AddTool(tool_id, bitmap, shortHelpString=tooltip)
         self.Bind(wx.EVT_TOOL, click_handler, id=tool_id)
         return tool_id
 
@@ -388,15 +411,26 @@ class SketchFrame(wx.Frame, UserInterface):
     #---------------------- Sketch Menu event handlers -----------------------#
 
     def OnVerify(self, evt):
-        # FIXME need to communicate the various compliation settings
-        # -- what board to use, RAM vs. FLASH, etc.  that means making
-        # menus for them (see TODOs in _make_menu_bar), storing the
-        # results, and passing them to compile.
         if self._query_user_save() == ABORT:
             return
+        for item, config in self.board_item_to_config.iteritems():
+            if item.IsChecked():
+                board, target = config
+                break
+        else:
+            # can't happen, but just to be sure
+            error_popup(u'Please select a board',
+                        u'You must select a board and memory target from '
+                        u'the Tools > Board submenu before the Sketch '
+                        u'can be compiled.')
+            return
+        # convert 'Maple Mini' to 'maple_mini', etc.
+        board = board.lower().replace(' ', '_')
+        target = target.lower()
+
         # the sketch will call back any results to display via
         # SketchFrame's UserInterface methods
-        self.sketch.compile()
+        self.sketch.compile(board, target)
 
     def OnStop(self, evt):
         self.sketch.stop_compiling()

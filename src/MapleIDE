@@ -18,8 +18,6 @@ import sketchbook
 from settings.preferences import preference
 from SketchFrame import SketchFrame
 
-assert_mode = wx.PYAPP_ASSERT_EXCEPTION
-
 #-----------------------------------------------------------------------------#
 
 class MapleIDEApp(wx.App):
@@ -28,7 +26,7 @@ class MapleIDEApp(wx.App):
         wx.App.__init__(self, redirect=False)
 
     def OnInit(self):
-        self.SetAssertMode(assert_mode)
+        self.SetAssertMode(wx.PYAPP_ASSERT_EXCEPTION)
 
         sketch_f = sketchbook.most_recent_sketch_file()
         frame = SketchFrame(main_file=sketch_f)

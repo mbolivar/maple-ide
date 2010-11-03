@@ -29,10 +29,8 @@ def is_sketchdir(d):
     return bool([x for x in listdir(d) if x.endswith(EXN)])
 
 def sketch_dirs():
-    return [d for d in listdir(P('sketchbook')) if \
-                isdir(_abs(d)) and \
-                _abs(d) != P('user_libs') and \
-                is_sketchdir(_abs(d))]
+    return [d for d in map(_abs, listdir(P('sketchbook'))) if \
+                isdir(d) and d != P('user_libs') and is_sketchdir(d)]
 
 def sketch_dirs_abs():
     return [_abs(d) for d in sketch_dirs()]
@@ -41,9 +39,12 @@ def sketch_dir_get_abs(sketch_dir):
     return _abs(sketch_dir)
 
 def most_recent_sketch_dir():   # preferences go stale
-    skd = sketch_dirs_abs()
-    skd.sort(key=os.path.getmtime, reverse=True)
-    return skd[0] if len(skd) > 0 else None
+    skds = sketch_dirs_abs()
+    def latest_mtime(skd):      # TODO something faster?
+        mtimes = [os.path.getmtime(join(skd, f)) for f in listdir(skd)]
+        if mtimes: return max(mtimes)
+        else: return -1
+    return max(skds, key=latest_mtime)
 
 def most_recent_sketch_file():
     """Returns the path to the main file of the most recently edited
@@ -94,7 +95,7 @@ def sketch_main_file(sketch_dir):
     """Given a nonempty sketch directory, try to return the absolute
     path to the main file in the sketch.  Returns some file in any
     case."""
-    fs = [x for x in os.listdir(sketch_dir) if x.endswith(EXN)]
+    fs = [x for x in listdir(sketch_dir) if x.endswith(EXN)]
     if not fs: return None
 
     # shortcut: any file with the same name as the sketch directory is

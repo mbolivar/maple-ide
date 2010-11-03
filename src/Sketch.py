@@ -27,7 +27,7 @@ from gcc_parser import parse_line, parse_include_line
 from settings import SKETCH_EXN as EXN
 from settings.preferences import preference
 
-DEBUG = True
+_DEBUG = True
 
 #-----------------------------------------------------------------------------#
 
@@ -126,9 +126,18 @@ class Sketch(object):
         if FIXME_ignore: return
         self.ui.show_error(u"Not implemented yet", u"Sorry!")
 
-    def compile(self):
-        """Assumes the sketch is synced with the hard disk."""
+    def compile(self, board, memory_target):
+        """Assumes the sketch is synced with the hard disk.
+
+        board: 'maple', 'maple_mini', 'maple_native'
+        memory_target: 'ram', 'flash'
+
+        (case matters)"""
         self.ensure_existence() # ok, arduino, we'll check a little, too
+        if board not in [u'maple', u'maple_mini', u'maple_native']:
+            raise ValueError('bad board: {0}'.format(board))
+        if memory_target not in [u'ram', u'flash']:
+            raise ValueError('bad target: {0}'.format(memory_target))
 
         if self.compiling: self.stop_compiling(FIXME_ignore=True)
 
@@ -149,7 +158,7 @@ class Sketch(object):
 
             # do the compilation, reporting errors, status updates, etc.
             # via the self.ui callback methods
-            self.run_make()
+            self.run_make(board, memory_target)
         finally:
             self.compiling = False
 
@@ -195,7 +204,7 @@ class Sketch(object):
             shutil.copy(join(self.dir, basename), self.build_dir)
 
 
-    def run_make(self): # assumes self.build_dir is all set up
+    def run_make(self, board, target):
         make = preference('make_path')
         lmaple = preference('lib_maple_home')
         if u'Makefile' not in os.listdir(lmaple):
@@ -204,15 +213,20 @@ class Sketch(object):
                                    lmaple + u' is missing a Makefile.  ' + \
                                    u'Cannot verify sketch.')
             return
+
         shutil.copy(join(lmaple, u'Makefile'), self.build_dir)
         shutil.copy(join(lmaple, u'build-targets.mk'), self.build_dir)
-        # FIXME need to incorporate things like FLASH vs. RAM
-        if DEBUG:
-            print('compiling with: {0} SRCROOT={1}'.format(make,lmaple))
-        child = subprocess.Popen([make, u'SRCROOT=%s' % lmaple],
-                                 stdout=PIPE, stderr=STDOUT,
+
+        # FIXME works on Windows?
+        arg_list = [make,
+                    u'SRCROOT={0}'.format(lmaple),
+                    u'BOARD={0}'.format(board),
+                    u'MEMORY_TARGET={0}'.format(target)]
+        if _DEBUG: print('compiling with:', arg_list)
+        child = subprocess.Popen(arg_list, stdout=PIPE, stderr=STDOUT,
                                  cwd=self.build_dir)
         out_err = child.stdout
+
         status = child.poll()
         # FIXME this will block, so we won't be able to halt
         # compilation until a multithreaded solution is figured out

@@ -30,7 +30,6 @@ TOOLBAR
 -------
 
 - mouseover support
-- text listing what the button does should appear
 
 RESOURCES
 ---------
@@ -60,7 +59,5 @@ CPPStyledTextCtrl
 PREFERENCES
 -----------
 
-- configurable tab-width
-- LIB_MAPLE_HOME env var override
 - unicode substitution in preproc
 - imports

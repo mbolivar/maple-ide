@@ -70,6 +70,7 @@ class PreferencesFrame(wx.Frame):
         for pref, cfg in config:
             group = cfg.group
             idx = get_page_idx(group)
+            value = preferences.preference(pref)
             if idx is None:
                 self.nb.AddPage(wx.Panel(self.nb), group)
                 idx = get_page_idx(group) # this is stupid
@@ -83,7 +84,6 @@ class PreferencesFrame(wx.Frame):
                 desc = wx.StaticText(page, wx.ID_ANY, cfg.desc + u':',
                                      style=wx.ALIGN_LEFT)
                 desc.SetToolTip(tt)
-                value = preferences.preference(pref)
                 if ptype == 'path':
                     p = wx.FilePickerCtrl(page, wx.ID_ANY, path=value)
                 else:
@@ -96,7 +96,7 @@ class PreferencesFrame(wx.Frame):
                 sizer.Add(p, border=40, flag=wx.LEFT | wx.EXPAND)
             elif ptype == 'bool':
                 cb = wx.CheckBox(page, wx.ID_ANY, cfg.desc)
-                cb.SetValue(preferences.preference(pref))
+                cb.SetValue(value)
                 cb.SetToolTip(tt)
 
                 self.pref_controls[pref] = cb
@@ -108,8 +108,7 @@ class PreferencesFrame(wx.Frame):
                 desc = wx.StaticText(page, wx.ID_ANY, cfg.desc,
                                      style=wx.ALIGN_LEFT)
                 desc.SetToolTip(tt)
-                tc = wx.TextCtrl(page, wx.ID_ANY,
-                                 unicode(preferences.preference(pref)))
+                tc = wx.TextCtrl(page, wx.ID_ANY, unicode(value))
 
                 self.pref_controls[pref] = tc
 
@@ -117,6 +116,22 @@ class PreferencesFrame(wx.Frame):
                 child_sizer.AddSpacer(10)
                 child_sizer.Add(tc)
                 sizer.AddSpacer(10)
+                sizer.Add(child_sizer, border=10, flag=wx.LEFT)
+            elif ptype == 'options':
+                values = cfg.data['values']
+
+                child_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                desc = wx.StaticText(page, wx.ID_ANY, cfg.desc,
+                                     style=wx.ALIGN_LEFT)
+                desc.SetToolTip(tt)
+                c = wx.Choice(page, wx.ID_ANY, choices=values)
+                c.SetSelection(values.index(value))
+
+                self.pref_controls[pref] = c
+
+                child_sizer.Add(desc)
+                child_sizer.AddSpacer(10)
+                child_sizer.Add(c)
                 sizer.Add(child_sizer, border=10, flag=wx.LEFT)
             else:
                 die(u'Unknown preference type: {0}'.format(ptype))
@@ -152,6 +167,11 @@ class PreferencesFrame(wx.Frame):
                     return
 
                 controller_vals[pref] = val
+            elif ptype == 'options':
+                values = cfg.data['values']
+                controller_vals[pref] = values[control.GetSelection()]
+            else:
+                die('unknown ptype {0}'.format(ptype))
         preferences.set_and_save(controller_vals)
         _instance_closed()
         self.Close()

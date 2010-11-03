@@ -70,6 +70,7 @@ class CPPStyledTextCtrl(StyledTextCtrl):
         settings.preferences.register_change_watcher(self)
         self.SetUseTabs(preference('editor_insert_tabs'))
         self.SetTabWidth(preference('editor_tab_width'))
+        # FIXME doesn't seem to work
         self.SetTabIndents(preference('editor_tab_indents_line'))
 
         self._set_keybindings()
@@ -77,6 +78,9 @@ class CPPStyledTextCtrl(StyledTextCtrl):
     # -- Keybindings ---------------------------------------------------------#
 
     def _set_keybindings(self):
+        # FIXME make this delete; doesn't seem to be an STC_CMD for it, though
+        self.CmdKeyClear(ord('D'), STC_SCMOD_CTRL)
+
         if preference('editor_emacs_keybindings'):
             self.enable_emacs_keybindings()
 
@@ -91,6 +95,11 @@ class CPPStyledTextCtrl(StyledTextCtrl):
 
         self.CmdKeyAssign(ord('B'), STC_SCMOD_ALT, STC_CMD_WORDLEFT)
         self.CmdKeyAssign(ord('F'), STC_SCMOD_ALT, STC_CMD_WORDRIGHT)
+
+        self.CmdKeyAssign(ord('['), STC_SCMOD_ALT | STC_SCMOD_SHIFT,
+                          STC_CMD_PARAUP)
+        self.CmdKeyAssign(ord(']'), STC_SCMOD_ALT | STC_SCMOD_SHIFT,
+                          STC_CMD_PARADOWN)
 
         self.CmdKeyAssign(STC_KEY_BACK, STC_SCMOD_ALT, STC_CMD_DELWORDLEFT)
 
